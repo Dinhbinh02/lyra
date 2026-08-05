@@ -865,3 +865,28 @@ body,
 .control-btn.shake {
     animation: lyraShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
 }
+
+/* Video Container & MV Toggle styling */
+.video-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    overflow: hidden;
+    background: #000000;
+    z-index: 5;
+}
+
+.video-container video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.control-btn.active {
+    color: #DA3026 !important;
+    background: rgba(218, 48, 38, 0.22) !important;
+    border-color: rgba(218, 48, 38, 0.4) !important;
+}

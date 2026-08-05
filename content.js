@@ -89,6 +89,64 @@ function getGlowTarget(t) {
 
 let pipWindow = null;
 let isPlaying = false;
+let originalVideoParent = null;
+let originalVideoNextSibling = null;
+let activeVideoElement = null;
+let isMvMode = false;
+
+function moveVideoToPip() {
+    if (!pipWindow || pipWindow.closed) return false;
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+    if (!video) return false;
+
+    const videoContainer = pipWindow.document.getElementById('video-container');
+    const coverImg = pipWindow.document.getElementById('cover');
+    const noCover = pipWindow.document.getElementById('noCover');
+    if (!videoContainer) return false;
+
+    if (!originalVideoParent && video.parentNode) {
+        originalVideoParent = video.parentNode;
+        originalVideoNextSibling = video.nextSibling;
+    }
+
+    activeVideoElement = video;
+    videoContainer.appendChild(video);
+    videoContainer.classList.remove('hide');
+    if (coverImg) coverImg.classList.add('hide');
+    if (noCover) noCover.classList.add('hide');
+
+    isMvMode = true;
+    return true;
+}
+
+function restoreVideoToMain() {
+    if (activeVideoElement && originalVideoParent) {
+        try {
+            if (originalVideoNextSibling && originalVideoParent.contains(originalVideoNextSibling)) {
+                originalVideoParent.insertBefore(activeVideoElement, originalVideoNextSibling);
+            } else {
+                originalVideoParent.appendChild(activeVideoElement);
+            }
+        } catch (e) {
+            console.warn('Error restoring video element:', e);
+        }
+    }
+
+    if (pipWindow && !pipWindow.closed) {
+        const videoContainer = pipWindow.document.getElementById('video-container');
+        const coverImg = pipWindow.document.getElementById('cover');
+        const noCover = pipWindow.document.getElementById('noCover');
+        if (videoContainer) videoContainer.classList.add('hide');
+        if (coverImg && currentSongInfo.coverUrl) coverImg.classList.remove('hide');
+        else if (noCover) noCover.classList.remove('hide');
+    }
+
+    activeVideoElement = null;
+    originalVideoParent = null;
+    originalVideoNextSibling = null;
+    isMvMode = false;
+}
+
 let currentSongInfo = {
     title: "Nothing is playing",
     artist: "play a song to activate me!",
@@ -307,6 +365,24 @@ async function setup() {
             const ytShuffleBtn = document.querySelector('.shuffle.style-scope.ytmusic-player-bar');
             if (ytShuffleBtn) {
                 ytShuffleBtn.click();
+            }
+        });
+    }
+
+    const mvToggleBtn = pipWindow.document.getElementById('mv-toggle-btn');
+    if (mvToggleBtn) {
+        if (isMvMode) mvToggleBtn.classList.add('active');
+        mvToggleBtn.addEventListener('click', () => {
+            if (isMvMode) {
+                restoreVideoToMain();
+                mvToggleBtn.classList.remove('active');
+            } else {
+                const success = moveVideoToPip();
+                if (success) {
+                    mvToggleBtn.classList.add('active');
+                } else {
+                    triggerShake(mvToggleBtn);
+                }
             }
         });
     }
@@ -656,6 +732,7 @@ document.addEventListener('request-pip-window', async (event) => {
 
         if ('documentPictureInPicture' in window) {
             if (pipWindow) {
+                restoreVideoToMain();
                 pipWindow.close();
                 close();
             }
@@ -679,8 +756,14 @@ document.addEventListener('request-pip-window', async (event) => {
             if (!pipWindow) return;
 
             pipWindow.addEventListener('resize', savePipSize);
-            pipWindow.addEventListener('pagehide', savePipSize);
-            pipWindow.addEventListener('unload', savePipSize);
+            pipWindow.addEventListener('pagehide', () => {
+                restoreVideoToMain();
+                savePipSize();
+            });
+            pipWindow.addEventListener('unload', () => {
+                restoreVideoToMain();
+                savePipSize();
+            });
 
             const styleLink = pipWindow.document.createElement('link');
             styleLink.rel = 'stylesheet';
