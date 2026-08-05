@@ -7,50 +7,42 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="popup-container">
+  <div class="popup">
     <!-- Header -->
-    <header class="header">
-      <div class="brand">
-        <h1 class="title">Lyra</h1>
-      </div>
-    </header>
-
-    <!-- Intro -->
-    <p class="intro">
-      Floating <strong>Picture-in-Picture (PiP)</strong> mini player with real-time synced lyrics for YouTube Music.
-    </p>
-
-    <!-- Usage Guide Card -->
-    <div class="card guide-card">
-      <h2 class="card-title">
-        <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
-        </svg>
-        How to Use
-      </h2>
-      <ol class="steps-list">
-        <li>
-          Open <a href="https://music.youtube.com" target="_blank" class="link accent-link">YouTube Music <span class="ext-icon">↗</span></a>
-        </li>
-        <li>Play any song of your choice.</li>
-        <li>Switch to another tab to automatically activate the <strong>Mini Player</strong>!</li>
-      </ol>
+    <div class="header">
+      <h1 class="title">Lyra</h1>
+      <p class="subtitle">Picture-in-Picture Mini Player for YouTube Music</p>
     </div>
 
-    <!-- AdBlock Recommendation Note -->
-    <div class="card note-card">
-      <div class="note-header">
-        <span class="note-tag">Recommended</span>
-        <svg class="shield-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
-        </svg>
+    <!-- Steps Section -->
+    <div class="section">
+      <div class="section-label">HOW TO USE</div>
+      <div class="steps">
+        <div class="step-item">
+          <span class="step-num">1</span>
+          <div class="step-content">
+            Open <a href="https://music.youtube.com" target="_blank" class="yt-link">YouTube Music ↗</a>
+          </div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">2</span>
+          <div class="step-content">Play any track or playlist</div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">3</span>
+          <div class="step-content">Switch tab to pop out Mini Player</div>
+        </div>
       </div>
-      <p class="note-text">
-        Install <strong>AdBlock</strong> for an uninterrupted & smooth playback experience:
-      </p>
-      <a href="https://chromewebstore.google.com/detail/adblock-%E2%80%94-block-ads-acros/gighmmpiobklfepjocnamgkkbiglidom?hl=en" target="_blank" class="adblock-btn">
-        <span>Get AdBlock on Chrome Web Store</span>
-        <span class="ext-icon">↗</span>
+    </div>
+
+    <!-- Tip Section -->
+    <div class="tip-box">
+      <div class="tip-header">
+        <span class="tip-tag">PRO TIP</span>
+        <span class="tip-text">For seamless playback without ad interruptions:</span>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/adblock-%E2%80%94-block-ads-acros/gighmmpiobklfepjocnamgkkbiglidom?hl=en" target="_blank" class="adblock-link">
+        Get AdBlock Extension ↗
       </a>
     </div>
   </div>
