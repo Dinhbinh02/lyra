@@ -1,0 +1,867 @@
+:root {
+    --default-back-color: #121212;
+    --default-text-color: #ffffff;
+    --default-text-secondary-color: rgba(255, 255, 255, 0.75);
+    --btn-hover-bg: rgba(255, 255, 255, 0.18);
+    --accent-color: #ffffff;
+}
+
+html,
+body,
+#pip-content {
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: var(--default-back-color);
+    overflow: hidden;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+#mini-player-root {
+    position: relative;
+    width: 100% !important;
+    height: 100% !important;
+    box-sizing: border-box;
+    background-color: #121212;
+    color: var(--default-text-color);
+    overflow: hidden;
+    container-type: size;
+    container-name: player;
+}
+
+/* ====================================================
+   AMBIENT GLASSMORPHISM BACKDROP
+   ==================================================== */
+.ambient-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.bg-layer {
+    position: absolute;
+    object-fit: cover;
+    will-change: transform;
+    pointer-events: none;
+}
+
+/* Layer 1: Base Background Circle (Rotates counter-clockwise, -0.25x speed) */
+.bg-base {
+    width: 220%;
+    height: 220%;
+    top: -60%;
+    left: -60%;
+    filter: blur(45px) brightness(0.7) saturate(2.0);
+    opacity: 1.0;
+    transform-origin: 50% 50%;
+    animation: spinCounter 28s linear infinite;
+}
+
+.bg-center {
+    width: 180%;
+    height: 180%;
+    top: -40%;
+    left: -40%;
+    filter: blur(35px) brightness(0.8) saturate(2.2);
+    opacity: 0.75;
+    transform-origin: 46% 54%;
+    animation: spinClockwise 16s linear infinite;
+}
+
+.bg-left {
+    width: 160%;
+    height: 160%;
+    top: -30%;
+    left: -40%;
+    filter: blur(30px) brightness(0.85) saturate(2.4);
+    opacity: 0.5;
+    transform-origin: 38% 62%;
+    animation: spinClockwise 9s linear infinite;
+}
+
+.bg-right {
+    width: 160%;
+    height: 160%;
+    bottom: -30%;
+    right: -40%;
+    filter: blur(30px) brightness(0.85) saturate(2.4);
+    opacity: 0.5;
+    transform-origin: 62% 38%;
+    animation: spinCounter 11s linear infinite;
+}
+
+@container player (min-width: 350px) {
+    .bg-base {
+        animation-duration: 48s;
+    }
+
+    .bg-center {
+        animation-duration: 32s;
+    }
+
+    .bg-left {
+        animation-duration: 20s;
+    }
+
+    .bg-right {
+        animation-duration: 24s;
+    }
+}
+
+@container player (min-width: 550px) {
+    .bg-base {
+        animation-duration: 75s;
+    }
+
+    .bg-center {
+        animation-duration: 50s;
+    }
+
+    .bg-left {
+        animation-duration: 35s;
+    }
+
+    .bg-right {
+        animation-duration: 40s;
+    }
+}
+
+@keyframes spinClockwise {
+    0% {
+        transform: rotate(0deg) scale(1.1);
+    }
+
+    50% {
+        transform: rotate(180deg) scale(1.3);
+    }
+
+    100% {
+        transform: rotate(360deg) scale(1.1);
+    }
+}
+
+@keyframes spinCounter {
+    0% {
+        transform: rotate(360deg) scale(1.3);
+    }
+
+    50% {
+        transform: rotate(180deg) scale(1.1);
+    }
+
+    100% {
+        transform: rotate(0deg) scale(1.3);
+    }
+}
+
+.ambient-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.32);
+    z-index: 1;
+}
+
+/* ====================================================
+   BASE LAYOUT
+   ==================================================== */
+.player-container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+    padding: 8px 10px 6px;
+}
+
+.top-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ─── Cover wrapper: JS sets width + height imperatively ──
+   CSS only handles border-radius, shadow, overflow.
+   ────────────────────────────────────────────────────── */
+.cover-wrapper {
+    flex-shrink: 0;
+    position: relative;
+    transition: width 0.15s cubic-bezier(0.2, 0, 0, 1), height 0.15s cubic-bezier(0.2, 0, 0, 1);
+    will-change: width, height;
+}
+
+.cover {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-radius 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+.cover-placeholder {
+    width: 100%;
+    height: 100%;
+    background-color: #333;
+    border-radius: inherit;
+}
+
+.add-to-playlist-btn {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    color: #fff;
+    border-radius: inherit;
+}
+
+.cover:hover .add-to-playlist-btn {
+    opacity: 1;
+}
+
+/* Song Info */
+.song-info {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    padding-right: 10px;
+    box-sizing: border-box;
+}
+
+.song-title {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 2px 0;
+    padding: 0;
+    color: #ffffff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+}
+
+.song-artist {
+    font-size: 10px;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Controls */
+.middle-section {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    flex-shrink: 0;
+    margin: 2px 0;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 0 2px 0;
+}
+
+.volume-container {
+    display: none !important;
+}
+
+.control-btn {
+    color: rgba(255, 255, 255, 0.9);
+    background: none;
+    border: none;
+    border-radius: 50%;
+    padding: 5px;
+    min-width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s ease-in-out;
+}
+
+.control-btn>svg {
+    vertical-align: middle;
+}
+
+#play {
+    transform: translateX(1px);
+}
+
+.control-btn.active,
+.lyra-btn.active {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.22);
+}
+
+.control-btn.lyrics-btn.active,
+.lyra-lyrics-btn.active {
+    background: #ffffff;
+    color: #121212;
+}
+
+.lyrics-btn svg,
+.lyra-lyrics-btn svg {
+    transform: translateX(-1px);
+}
+
+.hide {
+    display: none !important;
+}
+
+.pause {
+    margin-left: 1px;
+    margin-right: 1px;
+}
+
+/* Progress Bar */
+.bottom-section {
+    width: 100%;
+    flex-shrink: 0;
+    padding: 2px 0 1px;
+    box-sizing: border-box;
+}
+
+.progress-container {
+    width: 100%;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    transform-origin: bottom center;
+}
+
+.progress-container:hover {
+    transform: scaleY(1.5);
+    background-color: rgba(255, 255, 255, 0.35);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background-color: #ffffff;
+    width: 0;
+}
+
+/* ====================================================
+   MODE 1: ULTRA-COMPACT  (height < 100px)
+   [COVER] [song info]   — controls appear on hover
+   ==================================================== */
+@container player (max-height: 99px) {
+    .player-container {
+        padding: 6px;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        height: 100%;
+        box-sizing: border-box;
+    }
+
+    .top-section {
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        width: 100%;
+        height: 100%;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .cover-wrapper {
+        align-self: center;
+        flex-shrink: 0;
+    }
+
+    .cover {
+        border-radius: 8px;
+    }
+
+    .song-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: left;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+    }
+
+    .song-title {
+        font-size: 13px;
+        line-height: 1.2;
+        margin: 0 0 2px 0;
+    }
+
+    .song-artist {
+        font-size: 11px;
+        line-height: 1.2;
+        margin: 0;
+    }
+
+    .middle-section,
+    .bottom-section {
+        display: none !important;
+    }
+
+    #mini-player-root:hover .song-info {
+        display: none !important;
+    }
+
+    #mini-player-root:hover .top-section {
+        width: auto !important;
+        flex: 0 0 auto !important;
+    }
+
+    #mini-player-root:hover .middle-section {
+        display: flex !important;
+        flex: 1;
+        height: 100%;
+        margin: 0;
+        align-items: center;
+        justify-content: space-evenly;
+    }
+
+    #mini-player-root:hover .controls {
+        justify-content: space-evenly;
+        padding: 0;
+        gap: 2px;
+        width: 100%;
+    }
+
+    #mini-player-root:hover .control-btn {
+        min-width: 28px;
+        height: 28px;
+        padding: 4px;
+    }
+
+    #mini-player-root:hover .shuffle,
+    .lyrics-btn,
+    #lyrics-toggle-btn {
+        display: none !important;
+    }
+}
+
+/* ====================================================
+   MODE 2: STRIP / MEDIUM  (100px ≤ height < 180px)
+   Horizontal Strip with Cover + Info on top, Controls + Progress on bottom
+   ==================================================== */
+@container player (min-height: 100px) and (max-height: 179px) {
+    .player-container {
+        padding: 6px 8px;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .top-section {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+    }
+
+    .cover-wrapper {
+        align-self: center;
+        flex-shrink: 0;
+    }
+
+    .cover {
+        border-radius: 8px;
+    }
+
+    .song-info {
+        display: flex !important;
+        flex-direction: column;
+        justify-content: center;
+        text-align: left;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .song-title {
+        font-size: 13px;
+        margin-bottom: 2px;
+    }
+
+    .song-artist {
+        font-size: 10px;
+    }
+
+    .middle-section {
+        display: flex !important;
+        width: 100%;
+        margin: 2px 0;
+        flex-shrink: 0;
+    }
+
+    .controls {
+        justify-content: space-evenly;
+        width: 100%;
+        padding: 2px 0;
+        gap: 4px;
+    }
+
+    .control-btn {
+        min-width: 28px;
+        height: 28px;
+        padding: 4px;
+    }
+
+    .bottom-section {
+        display: block !important;
+        width: 100%;
+        flex-shrink: 0;
+        padding: 2px 0 1px;
+    }
+
+    .progress-container {
+        height: 4px;
+        border-radius: 2px;
+    }
+}
+
+/* ====================================================
+   MODE 3: CARD  (height ≥ 180px)
+   Vertical Apple Music layout
+   ==================================================== */
+@container player (min-height: 180px) {
+    .player-container {
+        padding: 10px 10px 6px;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 0;
+    }
+
+    .top-section {
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        flex: 1;
+        min-height: 0;
+    }
+
+    .cover-wrapper {
+        align-self: center;
+    }
+
+    .cover {
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .song-info {
+        text-align: center;
+        align-items: center;
+        width: 100%;
+        flex: 0 0 auto;
+        margin-top: 4px;
+        margin-bottom: 2px;
+    }
+
+    .song-title {
+        font-size: 14px;
+        margin-bottom: 2px;
+        max-width: 95%;
+    }
+
+    .song-artist {
+        font-size: 10px;
+        max-width: 95%;
+    }
+
+    .middle-section {
+        flex-shrink: 0;
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+
+    .controls {
+        justify-content: space-evenly;
+        width: 100%;
+        gap: clamp(2px, 1.5cqw, 8px);
+    }
+
+    .control-btn {
+        padding: 4px;
+        min-width: 28px;
+        height: 28px;
+    }
+
+    .control-btn.play-pause {
+        background: rgba(255, 255, 255, 0.95);
+        color: #121212;
+        padding: 6px;
+        min-width: 36px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+    }
+
+    .control-btn.play-pause:hover {
+        background: #ffffff;
+        transform: scale(1.08);
+    }
+
+    .control-btn.play-pause:active {
+        transform: scale(0.95);
+    }
+
+    .progress-container {
+        height: 4px;
+        border-radius: 2px;
+    }
+}
+
+/* Small width safety */
+@container player (max-width: 220px) {
+
+    .repeat-btn,
+    .shuffle {
+        display: none !important;
+    }
+}
+
+/* ====================================================
+   BEAUTIFUL SYNCED LYRICS VIEW (Spicetify / Apple Music Style)
+   ==================================================== */
+/* ====================================================
+   BEAUTIFUL SYNCED LYRICS VIEW (Spicetify / Apple Music Style)
+   ==================================================== */
+#mini-player-root.lyrics-mode .top-section {
+    display: none !important;
+}
+
+#mini-player-root.lyrics-mode .player-container {
+    justify-content: flex-end;
+}
+
+.lyrics-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 48px);
+    z-index: 10;
+    box-sizing: border-box;
+    padding: 8px 14px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 16px, black calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 16px, black calc(100% - 24px), transparent 100%);
+}
+
+.lyrics-container::-webkit-scrollbar {
+    width: 0px;
+    display: none;
+}
+
+.lyrics-status {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0 16px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.lyrics-list {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 10px;
+    align-items: center;
+    text-align: center;
+}
+
+.lyra-line-wrap {
+    margin: 6px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    width: 100%;
+}
+
+.lyra-line {
+    display: flex;
+    justify-content: center;
+    font-size: clamp(15px, 2.5cqw + 7px, 20px);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+    transition: color 0.25s ease, opacity 0.25s ease;
+    transform: none;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.lyra-line.active {
+    color: #ffffff;
+    opacity: 1;
+    font-weight: 700;
+    transform: none;
+}
+
+.lyra-line.sung {
+    color: rgba(255, 255, 255, 0.35);
+    opacity: 0.5;
+    transform: none;
+}
+
+.lyrics-list.plain-mode .lyra-line-wrap {
+    cursor: text;
+}
+
+.lyrics-list.plain-mode .lyra-line,
+.lyrics-list.plain-mode .lyra-romanized {
+    cursor: text;
+    user-select: text;
+}
+
+.lyrics-list.plain-mode .lyra-line {
+    color: #ffffff;
+    opacity: 0.9;
+    font-weight: 500;
+    transform: none;
+}
+
+.lyra-lyrics-source {
+    margin-top: 16px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    user-select: none;
+}
+
+.lyra-romanized {
+    font-size: clamp(12px, 2cqw + 6px, 15px);
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 2px;
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: center;
+    transition: color 0.25s ease, opacity 0.25s ease;
+    transform: none;
+    user-select: text;
+}
+
+.lyra-line.active + .lyra-romanized,
+.lyra-line.active+.lyra-romanized {
+    color: #ffffff;
+    opacity: 0.95;
+    font-weight: 600;
+    transform: none;
+}
+
+.lyra-line.sung + .lyra-romanized,
+.lyra-line.sung+.lyra-romanized {
+    color: rgba(255, 255, 255, 0.35);
+    opacity: 0.4;
+    transform: none;
+}
+
+@keyframes lyraShake {
+
+    0%,
+    100% {
+        transform: translateX(-1px) rotate(0deg);
+    }
+
+    15% {
+        transform: translateX(-5px) rotate(-10deg);
+    }
+
+    30% {
+        transform: translateX(5px) rotate(10deg);
+    }
+
+    45% {
+        transform: translateX(-4px) rotate(-6deg);
+    }
+
+    60% {
+        transform: translateX(4px) rotate(6deg);
+    }
+
+    75% {
+        transform: translateX(-2px) rotate(-3deg);
+    }
+}
+
+.lyra-btn.shake,
+.control-btn.shake {
+    animation: lyraShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
+}

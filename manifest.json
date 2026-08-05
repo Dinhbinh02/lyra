@@ -1,0 +1,55 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "icons/icon128.png",
+         "48": "icons/icon48.png",
+         "32": "icons/icon32.png",
+         "16": "icons/icon16.png"
+      },
+      "default_title": "Lyra Mini Player"
+   },
+   "background": {
+      "service_worker": "background.js",
+      "type": "module"
+   },
+   "content_scripts": [
+      {
+         "js": [
+            "content.js"
+         ],
+         "matches": [
+            "*://music.youtube.com/*"
+         ]
+      }
+   ],
+   "web_accessible_resources": [
+      {
+         "resources": [
+            "pip.css",
+            "pip.html"
+         ],
+         "matches": [
+            "*://music.youtube.com/*"
+         ]
+      }
+   ],
+   "description": "Floating Picture-in-Picture mini player with synced lyrics for YouTube Music",
+   "host_permissions": [
+      "*://music.youtube.com/*"
+   ],
+   "icons": {
+      "128": "icons/icon128.png",
+      "48": "icons/icon48.png",
+      "32": "icons/icon32.png",
+      "16": "icons/icon16.png"
+   },
+   "manifest_version": 3,
+   "name": "Lyra - Mini Player & Lyrics for YouTube Music",
+   "permissions": [
+      "activeTab",
+      "tabs",
+      "scripting"
+   ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "0.1.2"
+}
