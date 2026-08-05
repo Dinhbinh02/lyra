@@ -6,6 +6,7 @@
          "32": "icons/icon32.png",
          "16": "icons/icon16.png"
       },
+      "default_popup": "popup.html",
       "default_title": "Lyra Mini Player"
    },
    "background": {
