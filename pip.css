@@ -882,7 +882,13 @@ body,
 .video-container video {
     width: 100% !important;
     height: 100% !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
+    background: #000000 !important;
+}
+
+.cover-wrapper.mv-mode {
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .control-btn.active {

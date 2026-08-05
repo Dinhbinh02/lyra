@@ -102,6 +102,7 @@ function moveVideoToPip() {
     const videoContainer = pipWindow.document.getElementById('video-container');
     const coverImg = pipWindow.document.getElementById('cover');
     const noCover = pipWindow.document.getElementById('noCover');
+    const wrapper = pipWindow.document.querySelector('.cover-wrapper');
     if (!videoContainer) return false;
 
     if (!originalVideoParent && video.parentNode) {
@@ -114,8 +115,10 @@ function moveVideoToPip() {
     videoContainer.classList.remove('hide');
     if (coverImg) coverImg.classList.add('hide');
     if (noCover) noCover.classList.add('hide');
+    if (wrapper) wrapper.classList.add('mv-mode');
 
     isMvMode = true;
+    if (typeof updateCoverSize === 'function') updateCoverSize();
     return true;
 }
 
@@ -136,7 +139,9 @@ function restoreVideoToMain() {
         const videoContainer = pipWindow.document.getElementById('video-container');
         const coverImg = pipWindow.document.getElementById('cover');
         const noCover = pipWindow.document.getElementById('noCover');
+        const wrapper = pipWindow.document.querySelector('.cover-wrapper');
         if (videoContainer) videoContainer.classList.add('hide');
+        if (wrapper) wrapper.classList.remove('mv-mode');
         if (coverImg && currentSongInfo.coverUrl) coverImg.classList.remove('hide');
         else if (noCover) noCover.classList.remove('hide');
     }
@@ -145,6 +150,7 @@ function restoreVideoToMain() {
     originalVideoParent = null;
     originalVideoNextSibling = null;
     isMvMode = false;
+    if (typeof updateCoverSize === 'function') updateCoverSize();
 }
 
 let currentSongInfo = {
@@ -869,10 +875,18 @@ document.addEventListener('request-pip-window', async (event) => {
             }
 
                 side = Math.max(32, side);
-                const targetPx = side + 'px';
-                if (wrapper.style.width !== targetPx) {
-                    wrapper.style.width = targetPx;
-                    wrapper.style.height = targetPx;
+                if (isMvMode) {
+                    const maxW = Math.min(w - 20, Math.round(side * 1.6));
+                    const targetW = maxW;
+                    const targetH = Math.round(targetW / 1.777);
+                    wrapper.style.width = targetW + 'px';
+                    wrapper.style.height = targetH + 'px';
+                } else {
+                    const targetPx = side + 'px';
+                    if (wrapper.style.width !== targetPx || wrapper.style.height !== targetPx) {
+                        wrapper.style.width = targetPx;
+                        wrapper.style.height = targetPx;
+                    }
                 }
             }
 
