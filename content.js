@@ -183,7 +183,7 @@ function updatePipContent() {
 
     const content = pipWindow.document.getElementById('pip-content');
     if (!content) return;
-    if (!titleHtml || !artistHtml || !coverHtml || !track || !placeHolderHtml || !repeatHtml || !repeatOnceHtml || !repeatBtn) {
+    if (!titleHtml || !artistHtml || !coverHtml || !track || !placeHolderHtml) {
         setup().then(r => {
             extractSongInfo().then(r => {
                 setValues();
@@ -272,17 +272,17 @@ function setValues() {
     }
 
     if (repeatMode === 0) {
-        repeatBtn.classList.remove('active');
-        repeatHtml.classList.remove('hide');
-        repeatOnceHtml.classList.add('hide');
+        if (repeatBtn) repeatBtn.classList.remove('active');
+        if (repeatHtml) repeatHtml.classList.remove('hide');
+        if (repeatOnceHtml) repeatOnceHtml.classList.add('hide');
     } else if (repeatMode === 1) {
-        repeatBtn.classList.add('active');
-        repeatHtml.classList.remove('hide');
-        repeatOnceHtml.classList.add('hide');
+        if (repeatBtn) repeatBtn.classList.add('active');
+        if (repeatHtml) repeatHtml.classList.remove('hide');
+        if (repeatOnceHtml) repeatOnceHtml.classList.add('hide');
     } else if (repeatMode === 2) {
-        repeatBtn.classList.add('active');
-        repeatHtml.classList.add('hide');
-        repeatOnceHtml.classList.remove('hide');
+        if (repeatBtn) repeatBtn.classList.add('active');
+        if (repeatHtml) repeatHtml.classList.add('hide');
+        if (repeatOnceHtml) repeatOnceHtml.classList.remove('hide');
     }
 
     if (volumeSlider) {
@@ -359,12 +359,14 @@ async function setup() {
         }
     });
 
-    repeatBtn.addEventListener('click', () => {
-        const ytRepeatBtn = document.querySelector('.repeat.style-scope.ytmusic-player-bar');
-        if (ytRepeatBtn) {
-            ytRepeatBtn.click();
-        }
-    });
+    if (repeatBtn) {
+        repeatBtn.addEventListener('click', () => {
+            const ytRepeatBtn = document.querySelector('.repeat.style-scope.ytmusic-player-bar');
+            if (ytRepeatBtn) {
+                ytRepeatBtn.click();
+            }
+        });
+    }
 
     if (shuffleHtml) {
         shuffleHtml.addEventListener('click', () => {
