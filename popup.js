@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (href) {
                 if (href.startsWith('mailto:')) {
                     const email = href.replace('mailto:', '');
-                    // Open Gmail webmail compose page so Windows users without local Mail apps can send emails directly
+
                     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
                     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
                         chrome.tabs.create({ url: gmailUrl });

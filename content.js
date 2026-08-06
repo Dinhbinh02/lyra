@@ -1,4 +1,47 @@
 
+
+(function injectPromoBlockerCSS() {
+    const css = `
+
+        ytmusic-mealbar-promo-renderer,
+        ytmusic-mealbar-promotion-renderer,
+        ytmusic-banner-promo-renderer,
+        ytmusic-statement-banner-renderer,
+        #mealbar-promo-renderer,
+        .ytmusic-mealbar-promo-renderer,
+        tp-yt-paper-dialog:has(ytmusic-mealbar-promo-renderer),
+        tp-yt-paper-dialog:has(ytmusic-mealbar-promotion-renderer),
+        tp-yt-paper-dialog:has(ytmusic-you-there-renderer),
+
+        ytmusic-app-install-banner-renderer,
+        .ytmusic-app-install-banner-renderer,
+        [class*="app-install"],
+
+        ytmusic-guide-entry-renderer:has([href*="premium"]),
+        ytmusic-nav-bar:has([href*="premium"]),
+        tp-yt-paper-dialog:has([href*="premium"]) {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+    `;
+    const style = document.createElement('style');
+    style.id = 'lyra-promo-blocker';
+    style.textContent = css;
+    const inject = () => {
+        if (!document.getElementById('lyra-promo-blocker')) {
+            (document.head || document.documentElement || document.body)?.appendChild(style);
+        }
+    };
+    inject();
+    document.addEventListener('DOMContentLoaded', inject, { once: true });
+})();
+
 class Spring {
     constructor(initial, dampingRatio, frequency) {
         if (dampingRatio * frequency < 0) {
@@ -110,6 +153,10 @@ function moveVideoToPip() {
 
     isMvMode = true;
     if (typeof updateCoverSize === 'function') updateCoverSize();
+    if (currentSongInfo.title && currentSongInfo.artist) {
+        currentLyricsSongKey = '';
+        fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
+    }
     return true;
 }
 
@@ -142,6 +189,10 @@ function restoreVideoToMain() {
     originalVideoNextSibling = null;
     isMvMode = false;
     if (typeof updateCoverSize === 'function') updateCoverSize();
+    if (currentSongInfo.title && currentSongInfo.artist) {
+        currentLyricsSongKey = '';
+        fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
+    }
 }
 
 let currentSongInfo = {
@@ -207,7 +258,7 @@ function setValues() {
         }
     }
 
-    if (currentSongInfo.highResUrl && currentSongInfo.highResUrl !== fastUrl && currentSongInfo.preloadingUrl !== currentSongInfo.highResUrl) {
+    if (currentSongInfo.highResUrl && currentSongInfo.preloadingUrl !== currentSongInfo.highResUrl) {
         const hdTarget = currentSongInfo.highResUrl;
         currentSongInfo.preloadingUrl = hdTarget;
         const imgPreloader = new Image();
@@ -218,6 +269,14 @@ function setValues() {
                 bgImages.forEach(img => {
                     img.src = hdTarget;
                 });
+            }
+        };
+        imgPreloader.onerror = () => {
+
+            if (hdTarget.includes('maxresdefault.jpg')) {
+                const fallbackHd = hdTarget.replace('maxresdefault.jpg', 'hqdefault.jpg');
+                currentSongInfo.highResUrl = fallbackHd;
+                if (coverHtml.src !== fallbackHd) coverHtml.src = fallbackHd;
             }
         };
         imgPreloader.src = hdTarget;
@@ -578,12 +637,19 @@ function getHighResCoverUrl(src) {
     if (!src) return null;
     let url = src;
     if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+
         url = url
             .replace(/=w\d+-h\d+(-[a-z0-9-]+)?/gi, '=w1200-h1200-l90-rj')
-            .replace(/=s\d+(-[a-z0-9-]+)?/gi, '=s1200-l90-rj');
+            .replace(/=s\d+(-[a-z0-9-]+)?/gi, '=s1200-l90-rj')
+            .replace(/=w\d+/gi, '=w1200')
+            .replace(/=h\d+/gi, '=h1200');
     }
     if (url.includes('ytimg.com')) {
-        url = url.replace(/(hqdefault|mqdefault|sddefault|default)\.jpg/gi, 'maxresdefault.jpg');
+
+        url = url
+            .replace(/(hqdefault|mqdefault|sddefault|default|hq720)\.jpg/gi, 'maxresdefault.jpg')
+            .replace(/=w\d+-h\d+(-[a-z0-9-]+)?/gi, '=w1200-h1200-l90-rj')
+            .replace(/=s\d+(-[a-z0-9-]+)?/gi, '=s1200-l90-rj');
     }
     return url;
 }
@@ -714,7 +780,66 @@ function registerMediaSessionPipHandler() {
     }
 }
 
+function injectPipButtonToPlayerBar() {
+    const rightControlsButtons = document.querySelector('#right-controls .right-controls-buttons, .right-controls-buttons');
+    if (!rightControlsButtons || document.getElementById('pipButton')) return;
+
+    const pipBtn = document.createElement('button');
+    pipBtn.id = 'pipButton';
+    pipBtn.className = 'pip-btn-injected style-scope yt-icon-button';
+    pipBtn.title = 'Picture-in-Picture';
+    pipBtn.setAttribute('aria-label', 'Picture-in-Picture');
+    pipBtn.style.cssText = `
+        background: transparent;
+        border: none;
+        box-sizing: border-box;
+        cursor: pointer;
+        outline: none;
+        padding: 8px;
+        margin: 0 2px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ytmusic-control-background-color, #909090);
+        transition: background-color 0.2s ease, color 0.2s ease;
+    `;
+
+    pipBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" focusable="false" aria-hidden="true" style="pointer-events: none; display: block; width: 24px; height: 24px; fill: currentColor;">
+            <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"></path>
+        </svg>
+    `;
+
+    pipBtn.addEventListener('mouseenter', () => {
+        pipBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        pipBtn.style.color = '#ffffff';
+    });
+
+    pipBtn.addEventListener('mouseleave', () => {
+        pipBtn.style.backgroundColor = 'transparent';
+        pipBtn.style.color = 'var(--ytmusic-control-background-color, #909090)';
+    });
+
+    pipBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            const htmlContent = await getMiniPlayerHtml();
+            document.dispatchEvent(new CustomEvent('request-pip-window', { detail: { html: htmlContent } }));
+        } catch (err) {
+            console.error('Error triggering PiP from injected button:', err);
+        }
+    });
+
+    rightControlsButtons.appendChild(pipBtn);
+}
+
 registerMediaSessionPipHandler();
+injectPipButtonToPlayerBar();
+setInterval(injectPipButtonToPlayerBar, 1000);
 
 let lastSavedW = null;
 let lastSavedH = null;
@@ -738,8 +863,8 @@ function getSavedPipSize() {
 
 function savePipSize() {
     if (!pipWindow || pipWindow.closed) return;
-    const w = Math.max(150, Math.round(pipWindow.outerWidth || pipWindow.innerWidth));
-    const h = Math.max(80, Math.round(pipWindow.outerHeight || pipWindow.innerHeight));
+    const w = Math.max(150, Math.round(pipWindow.innerWidth || pipWindow.outerWidth));
+    const h = Math.max(80, Math.round(pipWindow.innerHeight || pipWindow.outerHeight));
 
     if (w > 0 && h > 0 && (w !== lastSavedW || h !== lastSavedH)) {
         lastSavedW = w;
@@ -766,8 +891,8 @@ document.addEventListener('request-pip-window', async (event) => {
             }
 
             const savedSize = await getSavedPipSize();
-            const initialWidth = savedSize.pipWidth || 275;
-            const initialHeight = savedSize.pipHeight || 102;
+            const initialWidth = savedSize.pipWidth || 240;
+            const initialHeight = savedSize.pipHeight || 340;
 
             try {
                 pipWindow = await window.documentPictureInPicture.requestWindow({
@@ -839,7 +964,6 @@ document.addEventListener('request-pip-window', async (event) => {
                 const h = root.offsetHeight;
                 const w = root.offsetWidth;
 
-                // Calculate constant linear speed duration based on container diagonal (0.07 = faster rotation)
                 const diagonal = Math.sqrt(w * w + h * h);
                 const baseDuration = (diagonal * 0.07).toFixed(2);
                 root.style.setProperty('--bg-duration-base', `${baseDuration}s`);
@@ -879,25 +1003,25 @@ document.addEventListener('request-pip-window', async (event) => {
                     }
 
                     if (h < 180) {
-                    const controls = root.querySelector('.middle-section');
-                    const progress = root.querySelector('.bottom-section');
-                    const overhead = 12 +
-                        (controls?.offsetHeight || 32) +
-                        (progress?.offsetHeight || 6) +
-                        6;
-                    side = Math.max(32, h - overhead);
-                } else {
-                    const songInfo = root.querySelector('.song-info');
-                    const controls = root.querySelector('.middle-section');
-                    const progress = root.querySelector('.bottom-section');
-                    const overhead = 16 +
-                        (songInfo?.offsetHeight || 36) +
-                        (controls?.offsetHeight || 42) +
-                        (progress?.offsetHeight || 10) +
-                        20;
-                    side = Math.min(w - 20, Math.max(0, h - overhead));
+                        const controls = root.querySelector('.middle-section');
+                        const progress = root.querySelector('.bottom-section');
+                        const overhead = 12 +
+                            (controls?.offsetHeight || 32) +
+                            (progress?.offsetHeight || 6) +
+                            6;
+                        side = Math.max(32, h - overhead);
+                    } else {
+                        const songInfo = root.querySelector('.song-info');
+                        const controls = root.querySelector('.middle-section');
+                        const progress = root.querySelector('.bottom-section');
+                        const overhead = 16 +
+                            (songInfo?.offsetHeight || 36) +
+                            (controls?.offsetHeight || 42) +
+                            (progress?.offsetHeight || 10) +
+                            20;
+                        side = Math.min(w - 20, Math.max(0, h - overhead));
+                    }
                 }
-            }
 
                 side = Math.max(32, side);
                 if (isMvMode) {
@@ -1311,7 +1435,7 @@ async function fetchSyncedLyrics(title, artist) {
 
 function processLyricsData(data) {
     if (!data) return false;
-    if (data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
+    if (!isMvMode && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
         isLyricsSynced = true;
         lyricsData = parseLrc(data.syncedLyrics);
         renderLyricsList();
@@ -1320,6 +1444,16 @@ function processLyricsData(data) {
         isLyricsSynced = false;
         const plainLines = data.plainLyrics.split('\n').filter(l => l.trim().length > 0);
         lyricsData = plainLines.map(text => ({ time: null, text }));
+        renderLyricsList();
+        return true;
+    } else if (isMvMode && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
+
+        isLyricsSynced = false;
+        const strippedLines = data.syncedLyrics
+            .split('\n')
+            .map(line => line.replace(/\[\d{2}:\d{2}\.\d{2,3}\]/g, '').replace(/<\d{2}:\d{2}\.\d{2,3}>/g, '').replace(/<\d+\.\d{2,3}>/g, '').trim())
+            .filter(line => line.length > 0 && !line.startsWith('[') && !line.startsWith('ve:'));
+        lyricsData = strippedLines.map(text => ({ time: null, text }));
         renderLyricsList();
         return true;
     }
@@ -1516,7 +1650,6 @@ function updateActiveLyricLine(currentTime, deltaTime) {
         });
     }
 
-    // Character-by-character (letter-by-letter) spring physics animation for active line
     if (activeIndex >= 0 && activeIndex < lyricsData.length) {
         const activeItem = lyricsData[activeIndex];
         if (activeItem && activeItem.words && activeItem.words.length > 0) {
@@ -1589,13 +1722,20 @@ function updateActiveLyricLine(currentTime, deltaTime) {
     }
 }
 
-// ----------------------------------------------------------------------
-// Anti Auto-Pause (Event-Driven: 0% CPU, zero polling)
-// ----------------------------------------------------------------------
 function handleYouTubeAutoPauseBypass() {
-    // Auto dismiss promo mealbars
-    const mealbars = document.querySelectorAll('ytmusic-mealbar-promo-renderer, ytmusic-mealbar-promotion-renderer, #mealbar-promo-renderer, tp-yt-paper-dialog:has(ytmusic-mealbar-promo-renderer)');
-    mealbars.forEach(el => el.remove());
+
+    const promoSelectors = [
+        'ytmusic-mealbar-promo-renderer',
+        'ytmusic-mealbar-promotion-renderer',
+        'ytmusic-banner-promo-renderer',
+        'ytmusic-statement-banner-renderer',
+        'ytmusic-app-install-banner-renderer',
+        '#mealbar-promo-renderer',
+        'tp-yt-paper-dialog:has(ytmusic-mealbar-promo-renderer)',
+        'tp-yt-paper-dialog:has(ytmusic-mealbar-promotion-renderer)',
+        'tp-yt-paper-dialog:has(ytmusic-you-there-renderer)'
+    ];
+    document.querySelectorAll(promoSelectors.join(', ')).forEach(el => el.remove());
 
     const youTherePopup = document.querySelector('ytmusic-you-there-renderer, tp-yt-paper-dialog:has(ytmusic-you-there-renderer), #you-there-renderer');
     if (youTherePopup) {
@@ -1608,14 +1748,14 @@ function handleYouTubeAutoPauseBypass() {
 
         const videoElement = document.querySelector('video');
         if (videoElement && videoElement.paused) {
-            videoElement.play().catch(() => {});
+            videoElement.play().catch(() => { });
         }
     }
 }
 
-// Only trigger when video is paused (0% CPU impact during normal playback)
 document.addEventListener('pause', (e) => {
     if (e.target && e.target.tagName === 'VIDEO') {
         setTimeout(handleYouTubeAutoPauseBypass, 150);
     }
 }, true);
+

@@ -49,40 +49,45 @@ async function handleAddToPlaylist(sendResponse) {
             target: { tabId: ytmTab.id },
             func: function() {
                 function clickAddToPlaylist() {
-                    const navButtons = document.querySelectorAll("#navigation-endpoint");
-                    const directAddToPlaylistBtn = navButtons.length > 1 ?
-                        navButtons[1] : null;
+                    const playerBar = document.querySelector('ytmusic-player-bar');
+                    if (!playerBar) return false;
 
-                    if (directAddToPlaylistBtn && directAddToPlaylistBtn.offsetParent !== null) {
-                        directAddToPlaylistBtn.click();
-                        return true;
-                    } else {
-                        const rootElement = document.getElementsByClassName("middle-controls-buttons style-scope ytmusic-player-bar")[0];
-                        if (!rootElement) {
-                            console.error("YTMusic Helper: Root control element not found.");
-                            return false;
-                        }
+                    const menuBtn = playerBar.querySelector('.menu.ytmusic-player-bar button, ytmusic-menu-renderer.ytmusic-player-bar button, button[aria-label="Action menu"]');
+                    if (menuBtn) {
 
-                        const menuBtn = rootElement.querySelector(".menu button");
-                        if (!menuBtn) {
-                            console.error("YTMusic Helper: Menu button not found.");
-                            return false;
-                        }
+                        const style = document.createElement('style');
+                        style.id = 'temp-hide-dropdown';
+                        style.textContent = 'ytmusic-menu-popup-renderer, tp-yt-iron-dropdown { display: none !important; opacity: 0 !important; visibility: hidden !important; }';
+                        document.head.appendChild(style);
 
                         menuBtn.click();
-                        menuBtn.click();
 
-                        setTimeout(() => {
-                            const navButtonsMenu = document.querySelectorAll("#navigation-endpoint");
-                            const menuAddToPlaylistBtn = navButtonsMenu.length > 1 ? navButtonsMenu[1] : null;
+                        const checkAndClick = () => {
+                            const addToPlaylistOption = document.querySelector('ytmusic-menu-popup-renderer ytmusic-menu-navigation-item-renderer[aria-label="Save to playlist"]');
+                            if (addToPlaylistOption) {
+                                addToPlaylistOption.click();
 
-                            if (menuAddToPlaylistBtn) {
-                                menuAddToPlaylistBtn.click();
+                                setTimeout(() => {
+                                    style.remove();
+                                }, 100);
+                                return true;
                             }
-                        }, 500);
+                            return false;
+                        };
 
+                        let attempts = 0;
+                        const interval = setInterval(() => {
+                            if (checkAndClick() || attempts++ > 8) {
+                                clearInterval(interval);
+
+                                if (attempts > 8) {
+                                    style.remove();
+                                }
+                            }
+                        }, 30);
                         return true;
                     }
+                    return false;
                 }
 
                 return clickAddToPlaylist();

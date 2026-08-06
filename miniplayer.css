@@ -94,7 +94,6 @@ body,
     animation: spinCounter calc(var(--bg-duration-base, 28s) * 0.4) linear infinite;
 }
 
-
 @keyframes spinClockwise {
     0% {
         transform: rotate(0deg) scale(1.1);
@@ -565,7 +564,8 @@ body,
     .top-section {
         flex-direction: column;
         align-items: center;
-        gap: 6px;
+        justify-content: center;
+        gap: 8px;
         width: 100%;
         flex: 1;
         min-height: 0;
@@ -583,6 +583,7 @@ body,
     .song-info {
         text-align: center;
         align-items: center;
+        justify-content: center;
         width: 100%;
         flex: 0 0 auto;
         margin-top: 4px;
@@ -806,30 +807,32 @@ body,
     user-select: none;
 }
 
+.lyra-line-wrap:has(.lyra-romanized) .lyra-line {
+    display: none !important;
+}
+
 .lyra-romanized {
-    font-size: clamp(12px, 2cqw + 6px, 15px);
+    font-size: clamp(15px, 2.5cqw + 7px, 20px);
     color: rgba(255, 255, 255, 0.45);
-    margin-top: 2px;
-    font-weight: 500;
-    line-height: 1.3;
+    margin-top: 0;
+    font-weight: 600;
+    line-height: 1.4;
     text-align: center;
     transition: color 0.25s ease, opacity 0.25s ease;
     transform: none;
     user-select: text;
 }
 
-.lyra-line.active+.lyra-romanized,
 .lyra-line.active+.lyra-romanized {
     color: #ffffff;
-    opacity: 0.95;
-    font-weight: 600;
+    opacity: 1;
+    font-weight: 700;
     transform: none;
 }
 
-.lyra-line.sung+.lyra-romanized,
 .lyra-line.sung+.lyra-romanized {
     color: rgba(255, 255, 255, 0.35);
-    opacity: 0.4;
+    opacity: 0.5;
     transform: none;
 }
 
@@ -896,7 +899,6 @@ body,
     border-color: transparent !important;
 }
 
-/* Hide YouTube Music ad banners & promo mealbars */
 ytmusic-ad-banner-renderer,
 ytmusic-mealbar-promotion-renderer,
 ytmusic-mealbar-promo-renderer,
