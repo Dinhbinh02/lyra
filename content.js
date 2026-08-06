@@ -168,6 +168,7 @@ let repeatHtml = null;
 let repeatOnceHtml = null;
 let volumeSlider = null;
 let volumeSliderPopup = null;
+let isDraggingProgress = false;
 
 function updatePipContent() {
     if (!pipWindow) return;
@@ -245,11 +246,13 @@ function setValues() {
         pipWindow.document.getElementById('pause').classList.add('hide');
     }
 
-    if (currentSongInfo.duration > 0) {
-        const progress = (currentSongInfo.currentTime / currentSongInfo.duration) * 100;
-        track.style.width = `${progress}%`;
-    } else {
-        track.style.width = '0%';
+    if (!isDraggingProgress) {
+        if (currentSongInfo.duration > 0) {
+            const progress = (currentSongInfo.currentTime / currentSongInfo.duration) * 100;
+            track.style.width = `${progress}%`;
+        } else {
+            track.style.width = '0%';
+        }
     }
 
     if (shuffleHtml) {
@@ -409,23 +412,55 @@ async function setup() {
 
     const progressContainer = pipWindow.document.querySelector('.progress-container');
     if (progressContainer) {
-        progressContainer.addEventListener('click', (e) => {
-            const videoElement = document.querySelector('video');
-            if (!videoElement || !videoElement.duration) return;
+        let currentDragPercentage = 0;
 
+        const updateTrackVisual = (e) => {
             const rect = progressContainer.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const width = rect.width;
-            if (width <= 0) return;
+            if (width <= 0) return 0;
 
             const percentage = Math.max(0, Math.min(1, clickX / width));
-            videoElement.currentTime = percentage * videoElement.duration;
-            lastSyncedTime = videoElement.currentTime;
-            lastSyncTimestamp = performance.now();
-
             if (track) {
                 track.style.width = (percentage * 100) + '%';
             }
+            return percentage;
+        };
+
+        const commitSeek = (percentage) => {
+            const videoElement = document.querySelector('video');
+            if (!videoElement || !videoElement.duration) return;
+
+            videoElement.currentTime = percentage * videoElement.duration;
+            lastSyncedTime = videoElement.currentTime;
+            lastSyncTimestamp = performance.now();
+        };
+
+        progressContainer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDraggingProgress = true;
+            currentDragPercentage = updateTrackVisual(e);
+        });
+
+        pipWindow.addEventListener('mousemove', (e) => {
+            if (isDraggingProgress) {
+                currentDragPercentage = updateTrackVisual(e);
+            }
+        });
+
+        const finishDrag = () => {
+            if (isDraggingProgress) {
+                isDraggingProgress = false;
+                commitSeek(currentDragPercentage);
+            }
+        };
+
+        pipWindow.addEventListener('mouseup', finishDrag);
+        window.addEventListener('mouseup', finishDrag);
+
+        progressContainer.addEventListener('click', (e) => {
+            currentDragPercentage = updateTrackVisual(e);
+            commitSeek(currentDragPercentage);
         });
     }
 
@@ -803,6 +838,12 @@ document.addEventListener('request-pip-window', async (event) => {
 
                 const h = root.offsetHeight;
                 const w = root.offsetWidth;
+
+                // Calculate constant linear speed duration based on container diagonal (0.07 = faster rotation)
+                const diagonal = Math.sqrt(w * w + h * h);
+                const baseDuration = (diagonal * 0.07).toFixed(2);
+                root.style.setProperty('--bg-duration-base', `${baseDuration}s`);
+
                 let side;
 
                 if (h < 100) {
@@ -906,7 +947,7 @@ document.addEventListener('request-pip-window', async (event) => {
                         currentSongInfo.currentTime = videoElement.currentTime;
                         currentSongInfo.duration = videoElement.duration;
 
-                        if (track && currentSongInfo.duration > 0) {
+                        if (!isDraggingProgress && track && currentSongInfo.duration > 0) {
                             const progress = (currentSongInfo.currentTime / currentSongInfo.duration) * 100;
                             track.style.width = `${progress}%`;
                         }
@@ -1032,22 +1073,142 @@ let wasLyricsViewOpenBeforeShrinking = false;
 let lastSyncedTime = 0;
 let lastSyncTimestamp = 0;
 
+class LyricSpring {
+    constructor(startPos, damping, frequency, goal = startPos) {
+        this.dampingRatio = damping;
+        this.frequency = frequency;
+        this.goal = goal;
+        this.position = startPos;
+        this.velocity = 0;
+    }
+
+    step(dt) {
+        const tau = Math.PI * 2;
+        const d = this.dampingRatio;
+        const f = this.frequency * tau;
+        const g = this.goal;
+        const x = this.position;
+        const v = this.velocity;
+
+        if (dt <= 0) return x;
+
+        if (d === 1) {
+            const q = Math.exp(-f * dt);
+            const w = dt * q;
+            const c0 = q + w * f;
+            const c2 = q - w * f;
+            const c3 = w * f * f;
+            const goalDist = x - g;
+            this.position = goalDist * c0 + v * w + g;
+            this.velocity = v * c2 - goalDist * c3;
+        } else if (d < 1) {
+            const fdt = f * dt;
+            const q = Math.exp(-d * fdt);
+            const c = Math.sqrt(1 - d * d);
+            const cfdt = c * fdt;
+            const cosVal = Math.cos(cfdt);
+            const sinVal = Math.sin(cfdt);
+            const z = sinVal / c;
+            const goalDist = x - g;
+            const c0 = q * (cosVal + d * z);
+            const c1 = q * z / f;
+            const c2 = q * (cosVal - d * z);
+            const c3 = q * z * f;
+            this.position = goalDist * c0 + v * c1 + g;
+            this.velocity = v * c2 - goalDist * c3;
+        } else {
+            const c = Math.sqrt(d * d - 1);
+            const r1 = -f * (d - c);
+            const r2 = -f * (d + c);
+            const goalDist = x - g;
+            const c2 = (v - r1 * goalDist) / (r2 - r1);
+            const c1 = goalDist - c2;
+            const e1 = Math.exp(r1 * dt);
+            const e2 = Math.exp(r2 * dt);
+            this.position = c1 * e1 + c2 * e2 + g;
+            this.velocity = c1 * r1 * e1 + c2 * r2 * e2;
+        }
+        return this.position;
+    }
+}
+
+const letterSpringMap = new WeakMap();
+
+function getLetterSprings(letterEl) {
+    if (!letterSpringMap.has(letterEl)) {
+        letterSpringMap.set(letterEl, {
+            scale: new LyricSpring(0.97, 0.7, 0.8, 1.0),
+            yOffset: new LyricSpring(0, 0.6, 1.0, 0),
+            glow: new LyricSpring(0, 0.6, 1.0, 0.3),
+            triggered: false
+        });
+    }
+    return letterSpringMap.get(letterEl);
+}
+
 function parseLrc(lrcText) {
     if (!lrcText) return [];
     const lines = lrcText.split('\n');
     const result = [];
-    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+    const lineTimeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
 
-    lines.forEach(line => {
-        const match = timeRegex.exec(line);
-        if (match) {
-            const min = parseInt(match[1], 10);
-            const sec = parseInt(match[2], 10);
-            const ms = parseInt(match[3].padEnd(3, '0'), 10);
-            const time = min * 60 + sec + ms / 1000;
-            const text = line.replace(timeRegex, '').trim();
-            if (text) {
-                result.push({ time, text });
+    lines.forEach(rawLine => {
+        let time = null;
+        const lineMatch = lineTimeRegex.exec(rawLine);
+        if (lineMatch) {
+            const min = parseInt(lineMatch[1], 10);
+            const sec = parseInt(lineMatch[2], 10);
+            const ms = parseInt(lineMatch[3].padEnd(3, '0'), 10);
+            time = min * 60 + sec + ms / 1000;
+        }
+
+        const lineWithoutHeader = rawLine.replace(lineTimeRegex, '').trim();
+        if (!lineWithoutHeader) return;
+
+        const words = [];
+        const wordRegex = /(?:<(\d{2}):(\d{2})\.(\d{2,3})>|<(\d+)\.(\d{2,3})>)\s*([^<]+)/g;
+        let wordMatch;
+
+        while ((wordMatch = wordRegex.exec(lineWithoutHeader)) !== null) {
+            let wordTime = 0;
+            if (wordMatch[1] !== undefined) {
+                const wMin = parseInt(wordMatch[1], 10);
+                const wSec = parseInt(wordMatch[2], 10);
+                const wMs = parseInt(wordMatch[3].padEnd(3, '0'), 10);
+                wordTime = wMin * 60 + wSec + wMs / 1000;
+            } else if (wordMatch[4] !== undefined) {
+                const wSec = parseInt(wordMatch[4], 10);
+                const wMs = parseInt(wordMatch[5].padEnd(3, '0'), 10);
+                wordTime = wSec + wMs / 1000;
+            }
+
+            const wordText = wordMatch[6].trim();
+            if (wordText) {
+                words.push({
+                    text: wordText,
+                    time: wordTime,
+                    duration: 0.6
+                });
+            }
+        }
+
+        if (words.length > 0) {
+            for (let i = 0; i < words.length; i++) {
+                if (i < words.length - 1) {
+                    words[i].duration = Math.max(0.2, words[i + 1].time - words[i].time);
+                } else {
+                    words[i].duration = 0.8;
+                }
+            }
+            if (time === null) {
+                time = words[0].time;
+            }
+            const cleanText = words.map(w => w.text).join(' ');
+            result.push({ time, text: cleanText, words });
+        } else if (time !== null) {
+            const cleanText = lineWithoutHeader.replace(/<[^>]+>/g, '').trim();
+            if (cleanText) {
+                result.push({ time, text: cleanText, words: null });
             }
         }
     });
@@ -1218,7 +1379,34 @@ function renderLyricsList() {
         const vocals = pipWindow.document.createElement('div');
         vocals.className = 'lyra-line';
         vocals.dataset.index = lineIndex;
-        vocals.textContent = item.text;
+
+        if (item.words && item.words.length > 0) {
+            vocals.classList.add('is-word-line');
+            item.words.forEach((w, wIdx) => {
+                const wordSpan = pipWindow.document.createElement('span');
+                wordSpan.className = 'lyra-word';
+                wordSpan.dataset.wordIndex = wIdx;
+                wordSpan.dataset.time = w.time;
+                wordSpan.dataset.duration = w.duration;
+
+                const chars = Array.from(w.text);
+                const charDuration = w.duration / Math.max(1, chars.length);
+
+                chars.forEach((char, cIdx) => {
+                    const letterSpan = pipWindow.document.createElement('span');
+                    letterSpan.className = 'lyra-letter';
+                    letterSpan.dataset.charIndex = cIdx;
+                    letterSpan.dataset.time = w.time + cIdx * charDuration;
+                    letterSpan.dataset.duration = charDuration;
+                    letterSpan.textContent = char;
+                    wordSpan.appendChild(letterSpan);
+                });
+
+                vocals.appendChild(wordSpan);
+            });
+        } else {
+            vocals.textContent = item.text;
+        }
 
         vocalsGroup.appendChild(vocals);
 
@@ -1307,10 +1495,11 @@ function updateActiveLyricLine(currentTime, deltaTime) {
         }
     }
 
+    const listEl = pipWindow.document.getElementById('lyrics-list');
+    if (!listEl) return;
+
     if (activeIndex !== currentActiveLineIndex) {
         currentActiveLineIndex = activeIndex;
-        const listEl = pipWindow.document.getElementById('lyrics-list');
-        if (!listEl) return;
 
         const allVocals = listEl.querySelectorAll('.lyra-line');
         allVocals.forEach((vocals, index) => {
@@ -1326,4 +1515,103 @@ function updateActiveLyricLine(currentTime, deltaTime) {
             }
         });
     }
+
+    // Character-by-character (letter-by-letter) spring physics animation for active line
+    if (activeIndex >= 0 && activeIndex < lyricsData.length) {
+        const activeItem = lyricsData[activeIndex];
+        if (activeItem && activeItem.words && activeItem.words.length > 0) {
+            const activeLineEl = listEl.querySelector(`.lyra-line[data-index="${activeIndex}"]`);
+            if (activeLineEl) {
+                const wordEls = activeLineEl.querySelectorAll('.lyra-word');
+                wordEls.forEach((wordEl, wIdx) => {
+                    const wData = activeItem.words[wIdx];
+                    if (!wData) return;
+
+                    const letterEls = wordEl.querySelectorAll('.lyra-letter');
+                    const numLetters = letterEls.length;
+                    const charDuration = wData.duration / Math.max(1, numLetters);
+
+                    let allLettersSung = true;
+
+                    letterEls.forEach((letterEl, cIdx) => {
+                        const letterTime = wData.time + cIdx * charDuration;
+                        const letterEndTime = letterTime + charDuration;
+
+                        if (currentTime >= letterTime && currentTime < letterEndTime + 0.15) {
+                            allLettersSung = false;
+                            letterEl.classList.add('active');
+                            letterEl.classList.remove('sung');
+
+                            const springs = getLetterSprings(letterEl);
+                            if (!springs.triggered) {
+                                springs.triggered = true;
+                                springs.scale.position = 0.96;
+                                springs.scale.goal = 1.0;
+                                springs.yOffset.position = -0.9;
+                                springs.yOffset.goal = 0;
+                                springs.glow.position = 0.9;
+                                springs.glow.goal = 0.3;
+                            }
+
+                            const curScale = springs.scale.step(deltaTime);
+                            const curY = springs.yOffset.step(deltaTime);
+                            const curGlow = springs.glow.step(deltaTime);
+
+                            letterEl.style.transform = `translateY(${curY.toFixed(2)}px) scale(${curScale.toFixed(3)})`;
+                            letterEl.style.textShadow = `0 0 ${Math.max(2, curGlow * 10).toFixed(1)}px rgba(255, 255, 255, ${Math.min(0.65, curGlow).toFixed(2)})`;
+                        } else if (currentTime >= letterEndTime + 0.15) {
+                            letterEl.classList.add('sung');
+                            letterEl.classList.remove('active');
+                            letterEl.style.transform = '';
+                            letterEl.style.textShadow = '';
+                        } else {
+                            allLettersSung = false;
+                            letterEl.classList.remove('active', 'sung');
+                            letterEl.style.transform = '';
+                            letterEl.style.textShadow = '';
+                            const springs = getLetterSprings(letterEl);
+                            springs.triggered = false;
+                        }
+                    });
+
+                    if (allLettersSung) {
+                        wordEl.classList.add('sung');
+                        wordEl.classList.remove('active');
+                    } else if (currentTime >= wData.time) {
+                        wordEl.classList.add('active');
+                        wordEl.classList.remove('sung');
+                    } else {
+                        wordEl.classList.remove('active', 'sung');
+                    }
+                });
+            }
+        }
+    }
 }
+
+// ----------------------------------------------------------------------
+// Anti Auto-Pause (Event-Driven: 0% CPU, zero polling)
+// ----------------------------------------------------------------------
+function handleYouTubeAutoPauseBypass() {
+    const youTherePopup = document.querySelector('ytmusic-you-there-renderer, tp-yt-paper-dialog:has(ytmusic-you-there-renderer), #you-there-renderer');
+    if (youTherePopup) {
+        const confirmBtn = youTherePopup.querySelector('#button, tp-yt-paper-button, button, #confirm-button, .ytmusic-you-there-renderer #button');
+        if (confirmBtn) {
+            confirmBtn.click();
+        } else {
+            youTherePopup.remove();
+        }
+
+        const videoElement = document.querySelector('video');
+        if (videoElement && videoElement.paused) {
+            videoElement.play().catch(() => {});
+        }
+    }
+}
+
+// Only trigger when video is paused (0% CPU impact during normal playback)
+document.addEventListener('pause', (e) => {
+    if (e.target && e.target.tagName === 'VIDEO') {
+        setTimeout(handleYouTubeAutoPauseBypass, 150);
+    }
+}, true);

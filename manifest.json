@@ -1,25 +1,55 @@
 {
+   "manifest_version": 3,
+   "name": "Lyra - YouTube Music Mini Player",
+   "version": "0.1.3",
+   "description": "Floating Picture-in-Picture mini player for YouTube Music",
+   "icons": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+   },
    "action": {
-      "default_icon": {
-         "128": "icons/icon128.png",
-         "48": "icons/icon48.png",
-         "32": "icons/icon32.png",
-         "16": "icons/icon16.png"
-      },
       "default_popup": "popup.html",
-      "default_title": "Lyra Mini Player"
+      "default_title": "Lyra Mini Player",
+      "default_icon": {
+         "16": "icons/icon16.png",
+         "32": "icons/icon32.png",
+         "48": "icons/icon48.png",
+         "128": "icons/icon128.png"
+      }
    },
    "background": {
       "service_worker": "background.js",
       "type": "module"
    },
+   "permissions": [
+      "activeTab",
+      "tabs",
+      "scripting",
+      "storage",
+      "declarativeNetRequest",
+      "declarativeNetRequestWithHostAccess"
+   ],
+   "host_permissions": [
+      "*://music.youtube.com/*"
+   ],
+   "declarative_net_request": {
+      "rule_resources": [
+         {
+            "id": "ruleset_youtube_ads",
+            "enabled": true,
+            "path": "rules/youtube_ads.json"
+         }
+      ]
+   },
    "content_scripts": [
       {
-         "js": [
-            "content.js"
-         ],
          "matches": [
             "*://music.youtube.com/*"
+         ],
+         "js": [
+            "content.js"
          ]
       }
    ],
@@ -33,25 +63,5 @@
             "*://music.youtube.com/*"
          ]
       }
-   ],
-   "description": "Floating Picture-in-Picture mini player with synced lyrics for YouTube Music",
-   "host_permissions": [
-      "*://music.youtube.com/*"
-   ],
-   "icons": {
-      "128": "icons/icon128.png",
-      "48": "icons/icon48.png",
-      "32": "icons/icon32.png",
-      "16": "icons/icon16.png"
-   },
-   "manifest_version": 3,
-   "name": "Lyra - Mini Player for YouTube Music",
-   "permissions": [
-      "activeTab",
-      "tabs",
-      "scripting",
-      "storage"
-   ],
-   "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "0.1.2"
+   ]
 }

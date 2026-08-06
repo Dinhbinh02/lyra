@@ -58,7 +58,7 @@ body,
     filter: blur(45px) brightness(0.7) saturate(2.0);
     opacity: 1.0;
     transform-origin: 50% 50%;
-    animation: spinCounter 28s linear infinite;
+    animation: spinCounter var(--bg-duration-base, 28s) linear infinite;
 }
 
 .bg-center {
@@ -69,7 +69,7 @@ body,
     filter: blur(35px) brightness(0.8) saturate(2.2);
     opacity: 0.75;
     transform-origin: 46% 54%;
-    animation: spinClockwise 16s linear infinite;
+    animation: spinClockwise calc(var(--bg-duration-base, 28s) * 0.6) linear infinite;
 }
 
 .bg-left {
@@ -80,7 +80,7 @@ body,
     filter: blur(30px) brightness(0.85) saturate(2.4);
     opacity: 0.5;
     transform-origin: 38% 62%;
-    animation: spinClockwise 9s linear infinite;
+    animation: spinClockwise calc(var(--bg-duration-base, 28s) * 0.35) linear infinite;
 }
 
 .bg-right {
@@ -91,44 +91,9 @@ body,
     filter: blur(30px) brightness(0.85) saturate(2.4);
     opacity: 0.5;
     transform-origin: 62% 38%;
-    animation: spinCounter 11s linear infinite;
+    animation: spinCounter calc(var(--bg-duration-base, 28s) * 0.4) linear infinite;
 }
 
-@container player (min-width: 350px) {
-    .bg-base {
-        animation-duration: 48s;
-    }
-
-    .bg-center {
-        animation-duration: 32s;
-    }
-
-    .bg-left {
-        animation-duration: 20s;
-    }
-
-    .bg-right {
-        animation-duration: 24s;
-    }
-}
-
-@container player (min-width: 550px) {
-    .bg-base {
-        animation-duration: 75s;
-    }
-
-    .bg-center {
-        animation-duration: 50s;
-    }
-
-    .bg-left {
-        animation-duration: 35s;
-    }
-
-    .bg-right {
-        animation-duration: 40s;
-    }
-}
 
 @keyframes spinClockwise {
     0% {
@@ -177,7 +142,7 @@ body,
     flex-direction: column;
     justify-content: space-between;
     box-sizing: border-box;
-    padding: 8px 10px 6px;
+    padding: 8px 10px 5px;
 }
 
 .top-section {
@@ -366,31 +331,53 @@ body,
 .bottom-section {
     width: 100%;
     flex-shrink: 0;
-    padding: 2px 0 1px;
+    padding: 0;
     box-sizing: border-box;
 }
 
 .progress-container {
+    position: relative;
     width: 100%;
+    height: 10px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.progress-container::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 0;
+    right: 0;
     height: 4px;
     background-color: rgba(255, 255, 255, 0.25);
     border-radius: 2px;
-    overflow: hidden;
-    flex-shrink: 0;
-    cursor: pointer;
     transition: transform 0.15s ease, background-color 0.15s ease;
-    transform-origin: bottom center;
+    pointer-events: none;
 }
 
-.progress-container:hover {
+.progress-container:hover::after {
     transform: scaleY(1.5);
     background-color: rgba(255, 255, 255, 0.35);
 }
 
 .progress-bar-fill {
-    height: 100%;
+    position: absolute;
+    top: 3px;
+    left: 0;
+    height: 4px;
     background-color: #ffffff;
     width: 0;
+    border-radius: 2px;
+    transition: transform 0.15s ease;
+    pointer-events: none;
+}
+
+.progress-container:hover .progress-bar-fill {
+    transform: scaleY(1.5);
 }
 
 @container player (max-height: 99px) {
@@ -492,7 +479,7 @@ body,
 
 @container player (min-height: 100px) and (max-height: 179px) {
     .player-container {
-        padding: 6px 8px;
+        padding: 6px 8px 5px;
         flex-direction: column;
         justify-content: space-between;
     }
@@ -544,7 +531,7 @@ body,
     .controls {
         justify-content: space-evenly;
         width: 100%;
-        padding: 2px 0;
+        padding: 4px 0;
         gap: 4px;
     }
 
@@ -558,18 +545,17 @@ body,
         display: block !important;
         width: 100%;
         flex-shrink: 0;
-        padding: 2px 0 1px;
+        padding: 0;
     }
 
     .progress-container {
-        height: 4px;
-        border-radius: 2px;
+        height: 10px;
     }
 }
 
 @container player (min-height: 180px) {
     .player-container {
-        padding: 10px 10px 6px;
+        padding: 10px 10px 5px;
         flex-direction: column;
         justify-content: flex-start;
         align-items: center;
@@ -652,8 +638,7 @@ body,
     }
 
     .progress-container {
-        height: 4px;
-        border-radius: 2px;
+        height: 10px;
     }
 }
 
@@ -728,7 +713,11 @@ body,
 
 .lyra-line {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
+    align-items: baseline;
+    column-gap: 0.3em;
+    row-gap: 4px;
     font-size: clamp(15px, 2.5cqw + 7px, 20px);
     font-weight: 600;
     color: rgba(255, 255, 255, 0.45);
@@ -738,11 +727,49 @@ body,
     text-align: center;
 }
 
+.lyra-line.is-word-line {
+    flex-wrap: wrap;
+}
+
+.lyra-word {
+    display: inline-flex;
+    white-space: nowrap;
+    transform-origin: center bottom;
+}
+
+.lyra-letter {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.45);
+    opacity: 0.45;
+    transition: color 0.15s ease, opacity 0.15s ease;
+    transform-origin: center bottom;
+    will-change: transform, opacity, text-shadow;
+}
+
 .lyra-line.active {
     color: #ffffff;
     opacity: 1;
     font-weight: 700;
     transform: none;
+}
+
+.lyra-line.active .lyra-letter {
+    color: rgba(255, 255, 255, 0.45);
+    opacity: 0.45;
+}
+
+.lyra-line.active .lyra-letter.active {
+    color: #ffffff;
+    opacity: 1;
+    font-weight: 700;
+}
+
+.lyra-line.active .lyra-letter.sung,
+.lyra-line.sung .lyra-letter {
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 0.85;
+    transform: none !important;
+    text-shadow: none !important;
 }
 
 .lyra-line.sung {
@@ -791,7 +818,7 @@ body,
     user-select: text;
 }
 
-.lyra-line.active + .lyra-romanized,
+.lyra-line.active+.lyra-romanized,
 .lyra-line.active+.lyra-romanized {
     color: #ffffff;
     opacity: 0.95;
@@ -799,7 +826,7 @@ body,
     transform: none;
 }
 
-.lyra-line.sung + .lyra-romanized,
+.lyra-line.sung+.lyra-romanized,
 .lyra-line.sung+.lyra-romanized {
     color: rgba(255, 255, 255, 0.35);
     opacity: 0.4;
@@ -864,7 +891,15 @@ body,
 }
 
 .control-btn.active {
-    color: #DA3026 !important;
-    background: rgba(218, 48, 38, 0.22) !important;
-    border-color: rgba(218, 48, 38, 0.4) !important;
+    color: #121212 !important;
+    background: #ffffff !important;
+    border-color: transparent !important;
+}
+
+/* Hide YouTube Music ad banners & promo mealbars */
+ytmusic-ad-banner-renderer,
+ytmusic-mealbar-promotion-renderer,
+.ytp-ad-overlay-container,
+ytmusic-banner-promo-renderer {
+    display: none !important;
 }

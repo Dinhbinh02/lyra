@@ -19,7 +19,7 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 10px;
 }
 
 .header {
@@ -81,8 +81,8 @@ body {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: rgba(229, 57, 53, 0.15);
-    color: #ff4d4d;
+    background: #ffffff;
+    color: #0c0c0e;
     font-size: 11px;
     font-weight: 700;
     display: flex;
@@ -109,8 +109,7 @@ body {
 }
 
 .feedback {
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 4px;
     font-size: 11.5px;
     color: rgba(255, 255, 255, 0.45);
     line-height: 1.45;
@@ -125,4 +124,39 @@ body {
 
 .email-link:hover {
     color: #ff4d4d;
+}
+
+.bmac-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.bmac-label {
+    text-align: left;
+    white-space: nowrap;
+    width: auto;
+}
+
+.bmac-link {
+    display: inline-flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: auto;
+    transition: opacity 0.15s ease;
+}
+
+.bmac-link:hover {
+    opacity: 0.88;
+}
+
+.bmac-img {
+    height: 32px !important;
+    width: auto !important;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 8px;
 }
