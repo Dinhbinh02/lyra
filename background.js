@@ -35,7 +35,7 @@ async function handleAddToPlaylist(sendResponse) {
         const tabs = await chrome.tabs.query({ url: "*://music.youtube.com/*" });
 
         if (tabs.length === 0) {
-            console.warn("Pestaña de YouTube Music no encontrada.");
+            console.warn("YouTube Music tab not found.");
             sendResponse({ success: false, reason: "No YouTube Music tab found" });
             return;
         }
@@ -49,35 +49,35 @@ async function handleAddToPlaylist(sendResponse) {
             target: { tabId: ytmTab.id },
             func: function() {
                 function clickAddToPlaylist() {
-                    const botonesNavegacion = document.querySelectorAll("#navigation-endpoint");
-                    const botonAnadirAPlaylistDirecto = botonesNavegacion.length > 1 ?
-                        botonesNavegacion[1] : null;
+                    const navButtons = document.querySelectorAll("#navigation-endpoint");
+                    const directAddToPlaylistBtn = navButtons.length > 1 ?
+                        navButtons[1] : null;
 
-                    if (botonAnadirAPlaylistDirecto && botonAnadirAPlaylistDirecto.offsetParent !== null) {
-                        botonAnadirAPlaylistDirecto.click();
-                        return true; // Éxito
+                    if (directAddToPlaylistBtn && directAddToPlaylistBtn.offsetParent !== null) {
+                        directAddToPlaylistBtn.click();
+                        return true;
                     } else {
                         const rootElement = document.getElementsByClassName("middle-controls-buttons style-scope ytmusic-player-bar")[0];
                         if (!rootElement) {
-                            console.error("YTMusic Helper: No se encontró el elemento raíz de los controles.");
+                            console.error("YTMusic Helper: Root control element not found.");
                             return false;
                         }
 
-                        const botonMenu = rootElement.querySelector(".menu button");
-                        if (!botonMenu) {
-                            console.error("YTMusic Helper: No se encontró el botón de menú.");
+                        const menuBtn = rootElement.querySelector(".menu button");
+                        if (!menuBtn) {
+                            console.error("YTMusic Helper: Menu button not found.");
                             return false;
                         }
 
-                        botonMenu.click();
-                        botonMenu.click();
+                        menuBtn.click();
+                        menuBtn.click();
 
                         setTimeout(() => {
-                            const navButtons = document.querySelectorAll("#navigation-endpoint");
-                            const botonAnadirEnMenu = navButtons.length > 1 ? navButtons[1] : null;
+                            const navButtonsMenu = document.querySelectorAll("#navigation-endpoint");
+                            const menuAddToPlaylistBtn = navButtonsMenu.length > 1 ? navButtonsMenu[1] : null;
 
-                            if (botonAnadirEnMenu) {
-                                botonAnadirEnMenu.click();
+                            if (menuAddToPlaylistBtn) {
+                                menuAddToPlaylistBtn.click();
                             }
                         }, 500);
 
@@ -95,7 +95,7 @@ async function handleAddToPlaylist(sendResponse) {
             }
         });
     } catch (error) {
-        console.error("Error al intentar añadir a playlist:", error);
-        sendResponse({ success: false, error: error.message || "Error desconocido" });
+        console.error("Error trying to add to playlist:", error);
+        sendResponse({ success: false, error: error.message || "Unknown error" });
     }
 }

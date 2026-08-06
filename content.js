@@ -1,9 +1,4 @@
-// content-script.js
-// This script runs in the context of YouTube Music
 
-/* ====================================================
-   INTERACTIVE SPRING SIMULATION ENGINE (LegacySpring.ts)
-   ==================================================== */
 class Spring {
     constructor(initial, dampingRatio, frequency) {
         if (dampingRatio * frequency < 0) {
@@ -53,7 +48,6 @@ class Spring {
     }
 }
 
-/* Linear Interpolation Splines */
 function lerp(a, b, t) {
     return a + (b - a) * t;
 }
@@ -83,9 +77,6 @@ function getGlowTarget(t) {
         return lerp(1.0, 0.0, (t - 0.6) / 0.4);
     }
 }
-
-// Store a reference to the PiP window
-
 
 let pipWindow = null;
 let isPlaying = false;
@@ -154,8 +145,8 @@ function restoreVideoToMain() {
 }
 
 let currentSongInfo = {
-    title: "Nothing is playing",
-    artist: "play a song to activate me!",
+    title: "Lyra Player",
+    artist: "Select a song to start",
     album: "",
     coverUrl: "",
     duration: 0,
@@ -197,10 +188,9 @@ function updatePipContent() {
 }
 
 function setValues() {
-    titleHtml.textContent = currentSongInfo.title == null || currentSongInfo.title === "" ? "Nothing is playing" : currentSongInfo.title;
-    artistHtml.textContent = currentSongInfo.artist == null || currentSongInfo.artist.trim().replace(/(\r\n|\n|\r)/gm, "") === "" ? "play a song to activate me!" : currentSongInfo.artist;
+    titleHtml.textContent = currentSongInfo.title == null || currentSongInfo.title === "" ? "Lyra Player" : currentSongInfo.title;
+    artistHtml.textContent = currentSongInfo.artist == null || currentSongInfo.artist.trim().replace(/(\r\n|\n|\r)/gm, "") === "" ? "Select a song to start" : currentSongInfo.artist;
 
-    // 1. Instantly display fast/cached thumbnail (0ms delay!)
     const fastUrl = currentSongInfo.fastUrl || currentSongInfo.coverUrl;
     if (fastUrl) {
         if (coverHtml.src !== fastUrl && coverHtml.src !== currentSongInfo.highResUrl) {
@@ -216,7 +206,6 @@ function setValues() {
         }
     }
 
-    // 2. Preload 1200px HD image in background, upgrade smoothly when ready
     if (currentSongInfo.highResUrl && currentSongInfo.highResUrl !== fastUrl && currentSongInfo.preloadingUrl !== currentSongInfo.highResUrl) {
         const hdTarget = currentSongInfo.highResUrl;
         currentSongInfo.preloadingUrl = hdTarget;
@@ -293,7 +282,6 @@ function setValues() {
         volumeSliderPopup.value = currentSongInfo.volume;
     }
 
-    // Fetch new synced lyrics if the song key has changed and the lyrics view is active
     if (isLyricsViewOpen && currentSongInfo.title && currentSongInfo.artist) {
         const key = `${currentSongInfo.title}-${currentSongInfo.artist}`;
         if (currentLyricsSongKey !== key) {
@@ -402,16 +390,16 @@ async function setup() {
         try {
             chrome.runtime.sendMessage({ action: "addToPlaylist" }, (response) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Error al enviar mensaje al popup:", chrome.runtime.lastError);
+                    console.error("Error sending message to background script:", chrome.runtime.lastError);
                     return;
                 }
 
                 if (!response || !response.success) {
-                    console.error("No se pudo completar la acción 'Añadir a playlist' en YouTube Music:",
-                        response ? response.reason || "Razón desconocida" : "No hay respuesta");
+                    console.error("Could not complete the 'Add to playlist' action on YouTube Music:",
+                        response ? response.reason || "Unknown reason" : "No response");
 
                     if (response && response.reason && response.reason !== "No YouTube Music tab found") {
-                        alert("Hubo un problema al intentar interactuar con YouTube Music. Intenta abrir YouTube Music primero.");
+                        alert("There was a problem trying to interact with YouTube Music. Please try opening YouTube Music first.");
                     }
                 }
             });
@@ -483,7 +471,6 @@ async function setup() {
             }
         });
     }
-
 
     if (volumeSlider) {
         volumeSlider.addEventListener('input', () => {
@@ -573,7 +560,6 @@ async function extractSongInfo() {
     const artistElement = document.querySelector('.subtitle.style-scope.ytmusic-player-bar');
     currentSongInfo.artist = artistElement ? artistElement.textContent : 'Unknown Artist';
 
-    // 1. Try MediaSession artwork FIRST (MediaSession is updated instantly by YouTube Music player before DOM render)
     let rawCoverUrl = null;
     if (navigator.mediaSession && navigator.mediaSession.metadata && navigator.mediaSession.metadata.artwork) {
         const artworkList = navigator.mediaSession.metadata.artwork;
@@ -585,7 +571,6 @@ async function extractSongInfo() {
         }
     }
 
-    // 2. Fallback to DOM cover image elements if MediaSession artwork is missing
     if (!rawCoverUrl) {
         const coverSelectors = [
             'ytmusic-player-bar .image.style-scope.ytmusic-player-bar',
@@ -648,12 +633,12 @@ async function extractSongInfo() {
 
 async function getMiniPlayerHtml() {
     try {
-        const htmlResponse = await fetch(chrome.runtime.getURL('pip.html?v=' + Date.now()), { cache: 'no-store' });
+        const htmlResponse = await fetch(chrome.runtime.getURL('miniplayer.html?v=' + Date.now()), { cache: 'no-store' });
         if (htmlResponse.ok) {
             return await htmlResponse.text();
         }
     } catch (e) {
-        console.warn('Could not fetch pip.html:', e);
+        console.warn('Could not fetch miniplayer.html:', e);
     }
     return '';
 }
@@ -775,7 +760,7 @@ document.addEventListener('request-pip-window', async (event) => {
 
             const styleLink = pipWindow.document.createElement('link');
             styleLink.rel = 'stylesheet';
-            styleLink.href = chrome.runtime.getURL('pip.css?v=' + Date.now());
+            styleLink.href = chrome.runtime.getURL('miniplayer.css?v=' + Date.now());
             pipWindow.document.head.appendChild(styleLink);
 
             pipWindow.document.body.style.margin = '0';
@@ -793,7 +778,6 @@ document.addEventListener('request-pip-window', async (event) => {
 
             content.innerHTML = html;
 
-            // Reset DOM handle variables for new window instance
             titleHtml = null;
             artistHtml = null;
             coverHtml = null;
@@ -805,10 +789,8 @@ document.addEventListener('request-pip-window', async (event) => {
             repeatBtn = null;
             shuffleHtml = null;
 
-            // 1. Extract song info instantly from Web API (0ms delay)
             await extractSongInfo();
 
-            // 2. Bind UI handlers and set values IMMEDIATELY at millisecond 0
             await setup();
             setValues();
 
@@ -944,7 +926,6 @@ document.addEventListener('request-pip-window', async (event) => {
                     lastSyncTimestamp = performance.now();
                 });
 
-                // Fetch Synced Lyrics whenever track changes
                 fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
 
                 videoElement.addEventListener('loadstart', () => {
@@ -980,7 +961,6 @@ document.addEventListener('request-pip-window', async (event) => {
                 });
             }
 
-            // Listen directly to image load events on YouTube Music's player bar
             const playerImgs = document.querySelectorAll('.image.style-scope.ytmusic-player-bar, ytmusic-player-bar img');
             playerImgs.forEach(img => {
                 img.addEventListener('load', () => {
@@ -1015,7 +995,7 @@ document.addEventListener('request-pip-window', async (event) => {
 
         }
     } catch (error) {
-        console.error('Error creando la ventana PiP:', error);
+        console.error('Error creating PiP window:', error);
     }
 });
 
@@ -1044,9 +1024,6 @@ function close() {
     lastSyncTimestamp = 0;
 }
 
-/* ====================================================
-   BEAUTIFUL SYNCED LYRICS (LrcLib API + Spicetify Style)
-   ==================================================== */
 let lyricsData = [];
 let currentLyricsSongKey = '';
 let currentActiveLineIndex = -1;
@@ -1095,7 +1072,7 @@ async function fetchSyncedLyrics(title, artist) {
     if (statusEl) statusEl.textContent = 'Searching lyrics...';
     if (listEl) listEl.innerHTML = '';
 
-    if (!title || title === "Nothing is playing") {
+    if (!title || title === "Lyra Player") {
         if (statusEl) statusEl.textContent = 'No track playing';
         return;
     }

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Open links in a new tab when clicked
+
     const links = document.querySelectorAll('a[target="_blank"]');
     links.forEach(link => {
         link.addEventListener('click', (e) => {

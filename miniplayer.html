@@ -23,23 +23,19 @@
       </div>
 
       <div class="song-info">
-        <div id="title" class="song-title">Nothing is playing</div>
-        <div id="artist" class="song-artist">play a song to activate me!</div>
+        <div id="title" class="song-title">Lyra Player</div>
+        <div id="artist" class="song-artist">Select a song to start</div>
       </div>
     </div>
 
     <div class="middle-section">
       <div class="controls">
-        <button id="mv-toggle-btn" class="control-btn mv-btn" title="Toggle MV / Cover">
+        <button id="repeat-btn" class="control-btn repeat-btn" title="Repeat">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-            <line x1="7" y1="2" x2="7" y2="22"></line>
-            <line x1="17" y1="2" x2="17" y2="22"></line>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <line x1="2" y1="7" x2="7" y2="7"></line>
-            <line x1="2" y1="17" x2="7" y2="17"></line>
-            <line x1="17" y1="17" x2="22" y2="17"></line>
-            <line x1="17" y1="7" x2="22" y2="7"></line>
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
           </svg>
         </button>
         <button class="control-btn prev" title="Previous">

@@ -22,7 +22,6 @@ body {
     gap: 16px;
 }
 
-/* Header */
 .header {
     display: flex;
     flex-direction: column;
@@ -42,7 +41,6 @@ body {
     line-height: 1.4;
 }
 
-/* Section & Steps */
 .section {
     display: flex;
     flex-direction: column;
@@ -110,7 +108,6 @@ body {
     text-decoration: underline;
 }
 
-/* Feedback Section */
 .feedback {
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);

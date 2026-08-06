@@ -32,9 +32,6 @@ body,
     container-name: player;
 }
 
-/* ====================================================
-   AMBIENT GLASSMORPHISM BACKDROP
-   ==================================================== */
 .ambient-bg {
     position: absolute;
     top: 0;
@@ -53,7 +50,6 @@ body,
     pointer-events: none;
 }
 
-/* Layer 1: Base Background Circle (Rotates counter-clockwise, -0.25x speed) */
 .bg-base {
     width: 220%;
     height: 220%;
@@ -172,9 +168,6 @@ body,
     z-index: 1;
 }
 
-/* ====================================================
-   BASE LAYOUT
-   ==================================================== */
 .player-container {
     position: relative;
     z-index: 2;
@@ -195,9 +188,6 @@ body,
     box-sizing: border-box;
 }
 
-/* ─── Cover wrapper: JS sets width + height imperatively ──
-   CSS only handles border-radius, shadow, overflow.
-   ────────────────────────────────────────────────────── */
 .cover-wrapper {
     flex-shrink: 0;
     position: relative;
@@ -254,7 +244,6 @@ body,
     opacity: 1;
 }
 
-/* Song Info */
 .song-info {
     flex: 1;
     min-width: 0;
@@ -298,7 +287,6 @@ body,
     box-sizing: border-box;
 }
 
-/* Controls */
 .middle-section {
     display: flex;
     align-items: center;
@@ -356,6 +344,11 @@ body,
     color: #121212;
 }
 
+#lyrics-toggle-btn.active {
+    background: #ffffff !important;
+    color: #121212 !important;
+}
+
 .lyrics-btn svg,
 .lyra-lyrics-btn svg {
     transform: translateX(-1px);
@@ -370,7 +363,6 @@ body,
     margin-right: 1px;
 }
 
-/* Progress Bar */
 .bottom-section {
     width: 100%;
     flex-shrink: 0;
@@ -401,10 +393,6 @@ body,
     width: 0;
 }
 
-/* ====================================================
-   MODE 1: ULTRA-COMPACT  (height < 100px)
-   [COVER] [song info]   — controls appear on hover
-   ==================================================== */
 @container player (max-height: 99px) {
     .player-container {
         padding: 6px;
@@ -502,10 +490,6 @@ body,
     }
 }
 
-/* ====================================================
-   MODE 2: STRIP / MEDIUM  (100px ≤ height < 180px)
-   Horizontal Strip with Cover + Info on top, Controls + Progress on bottom
-   ==================================================== */
 @container player (min-height: 100px) and (max-height: 179px) {
     .player-container {
         padding: 6px 8px;
@@ -583,10 +567,6 @@ body,
     }
 }
 
-/* ====================================================
-   MODE 3: CARD  (height ≥ 180px)
-   Vertical Apple Music layout
-   ==================================================== */
 @container player (min-height: 180px) {
     .player-container {
         padding: 10px 10px 6px;
@@ -677,7 +657,6 @@ body,
     }
 }
 
-/* Small width safety */
 @container player (max-width: 220px) {
 
     .repeat-btn,
@@ -686,12 +665,6 @@ body,
     }
 }
 
-/* ====================================================
-   BEAUTIFUL SYNCED LYRICS VIEW (Spicetify / Apple Music Style)
-   ==================================================== */
-/* ====================================================
-   BEAUTIFUL SYNCED LYRICS VIEW (Spicetify / Apple Music Style)
-   ==================================================== */
 #mini-player-root.lyrics-mode .top-section {
     display: none !important;
 }
@@ -866,7 +839,6 @@ body,
     animation: lyraShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
 }
 
-/* Video Container & MV Toggle styling */
 .video-container {
     position: absolute;
     top: 0;

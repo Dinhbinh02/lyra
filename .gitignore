@@ -1,3 +1,9 @@
 .DS_Store
 *.log
 node_modules/
+dist/
+lyra.zip
+store_assets/
+package.json
+package-lock.json
+build.js

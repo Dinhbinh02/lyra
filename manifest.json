@@ -26,8 +26,8 @@
    "web_accessible_resources": [
       {
          "resources": [
-            "pip.css",
-            "pip.html"
+            "miniplayer.css",
+            "miniplayer.html"
          ],
          "matches": [
             "*://music.youtube.com/*"
@@ -45,11 +45,12 @@
       "16": "icons/icon16.png"
    },
    "manifest_version": 3,
-   "name": "Lyra - Mini Player & Lyrics for YouTube Music",
+   "name": "Lyra - Mini Player for YouTube Music",
    "permissions": [
       "activeTab",
       "tabs",
-      "scripting"
+      "scripting",
+      "storage"
    ],
    "update_url": "https://clients2.google.com/service/update2/crx",
    "version": "0.1.2"
