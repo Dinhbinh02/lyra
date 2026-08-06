@@ -899,7 +899,11 @@ body,
 /* Hide YouTube Music ad banners & promo mealbars */
 ytmusic-ad-banner-renderer,
 ytmusic-mealbar-promotion-renderer,
+ytmusic-mealbar-promo-renderer,
+ytmusic-banner-promo-renderer,
+#mealbar-promo-renderer,
 .ytp-ad-overlay-container,
-ytmusic-banner-promo-renderer {
+tp-yt-paper-dialog:has(ytmusic-mealbar-promo-renderer),
+tp-yt-paper-dialog:has(ytmusic-mealbar-promotion-renderer) {
     display: none !important;
 }

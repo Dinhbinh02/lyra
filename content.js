@@ -1593,6 +1593,10 @@ function updateActiveLyricLine(currentTime, deltaTime) {
 // Anti Auto-Pause (Event-Driven: 0% CPU, zero polling)
 // ----------------------------------------------------------------------
 function handleYouTubeAutoPauseBypass() {
+    // Auto dismiss promo mealbars
+    const mealbars = document.querySelectorAll('ytmusic-mealbar-promo-renderer, ytmusic-mealbar-promotion-renderer, #mealbar-promo-renderer, tp-yt-paper-dialog:has(ytmusic-mealbar-promo-renderer)');
+    mealbars.forEach(el => el.remove());
+
     const youTherePopup = document.querySelector('ytmusic-you-there-renderer, tp-yt-paper-dialog:has(ytmusic-you-there-renderer), #you-there-renderer');
     if (youTherePopup) {
         const confirmBtn = youTherePopup.querySelector('#button, tp-yt-paper-button, button, #confirm-button, .ytmusic-you-there-renderer #button');
