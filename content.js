@@ -221,6 +221,18 @@ let volumeSlider = null;
 let volumeSliderPopup = null;
 let isDraggingProgress = false;
 
+// Custom dynamic controls variables
+let customMuteBtn = null;
+let customLikeBtn = null;
+let customDislikeBtn = null;
+let customRewindBtn = null;
+let customForwardBtn = null;
+let customSpeedBtn = null;
+let customSpeedText = null;
+let isMuted = false;
+let playbackSpeed = 1.0;
+let customControlsPriority = [null, 'repeat', 'prev', 'play', 'next', 'lyrics', null];
+
 function updatePipContent() {
     if (!pipWindow) return;
 
@@ -336,6 +348,42 @@ function setValues() {
         if (repeatOnceHtml) repeatOnceHtml.classList.remove('hide');
     }
 
+    // Dynamic states for Mute, Like, Dislike, Speed
+    if (customMuteBtn) {
+        const unmutedSvg = customMuteBtn.querySelector('.unmuted');
+        const mutedSvg = customMuteBtn.querySelector('.muted');
+        if (isMuted) {
+            customMuteBtn.classList.add('active');
+            if (unmutedSvg) unmutedSvg.classList.add('hide');
+            if (mutedSvg) mutedSvg.classList.remove('hide');
+        } else {
+            customMuteBtn.classList.remove('active');
+            if (unmutedSvg) unmutedSvg.classList.remove('hide');
+            if (mutedSvg) mutedSvg.classList.add('hide');
+        }
+    }
+
+    if (customLikeBtn) {
+        const likeStatus = document.querySelector('ytmusic-like-button-renderer');
+        const status = likeStatus ? likeStatus.getAttribute('like-status') : 'INDIFFERENT';
+        if (status === 'LIKE') {
+            customLikeBtn.classList.add('active');
+        } else {
+            customLikeBtn.classList.remove('active');
+        }
+    }
+
+    if (customDislikeBtn) {
+        const likeStatus = document.querySelector('ytmusic-like-button-renderer');
+        const status = likeStatus ? likeStatus.getAttribute('like-status') : 'INDIFFERENT';
+        if (status === 'DISLIKE') {
+            customDislikeBtn.classList.add('active');
+        } else {
+            customDislikeBtn.classList.remove('active');
+        }
+    }
+
+
     if (volumeSlider) {
         volumeSlider.value = currentSongInfo.volume;
     }
@@ -379,35 +427,48 @@ async function setup() {
     volumeSlider = volumeSlider == null ? pipWindow.document.getElementById('volume-slider') : volumeSlider;
     volumeSliderPopup = volumeSliderPopup == null ? pipWindow.document.getElementById('volume-slider-popup') : volumeSliderPopup;
 
-    const playPauseBtn = pipWindow.document.querySelector('.play-pause');
-    const previousBtn = pipWindow.document.querySelector('.prev');
-    const nextBtn = pipWindow.document.querySelector('.next');
-    shuffleHtml = pipWindow.document.querySelector('.shuffle');
-    const addToPlaylistBtn = pipWindow.document.getElementById('add-to-playlist');
+    // Bind new custom control buttons DOM
+    customMuteBtn = customMuteBtn == null ? pipWindow.document.getElementById('mute-btn') : customMuteBtn;
+    customLikeBtn = customLikeBtn == null ? pipWindow.document.getElementById('like-btn') : customLikeBtn;
+    customDislikeBtn = customDislikeBtn == null ? pipWindow.document.getElementById('dislike-btn') : customDislikeBtn;
+    customRewindBtn = customRewindBtn == null ? pipWindow.document.getElementById('rewind-btn') : customRewindBtn;
+    customForwardBtn = customForwardBtn == null ? pipWindow.document.getElementById('forward-btn') : customForwardBtn;
+    customSpeedBtn = customSpeedBtn == null ? pipWindow.document.getElementById('speed-btn') : customSpeedBtn;
+    customSpeedText = customSpeedText == null ? pipWindow.document.getElementById('speed-text') : customSpeedText;
 
-    playPauseBtn.addEventListener('click', () => {
-        const ytPlayPauseBtn = document.querySelector('.play-pause-button.style-scope.ytmusic-player-bar');
-        if (ytPlayPauseBtn) {
-            ytPlayPauseBtn.click();
-            triggerFastRefresh();
-        }
-    });
+    const playPauseBtn = pipWindow.document.getElementById('playPause-btn');
+    const previousBtn = pipWindow.document.getElementById('prev-btn');
+    const nextBtn = pipWindow.document.getElementById('next-btn');
 
-    previousBtn.addEventListener('click', () => {
-        const ytPreviousBtn = document.querySelector('.previous-button.style-scope.ytmusic-player-bar');
-        if (ytPreviousBtn) {
-            ytPreviousBtn.click();
-            triggerFastRefresh();
-        }
-    });
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+            const ytPlayPauseBtn = document.querySelector('.play-pause-button.style-scope.ytmusic-player-bar');
+            if (ytPlayPauseBtn) {
+                ytPlayPauseBtn.click();
+                triggerFastRefresh();
+            }
+        });
+    }
 
-    nextBtn.addEventListener('click', () => {
-        const ytNextBtn = document.querySelector('.next-button.style-scope.ytmusic-player-bar');
-        if (ytNextBtn) {
-            ytNextBtn.click();
-            triggerFastRefresh();
-        }
-    });
+    if (previousBtn) {
+        previousBtn.addEventListener('click', () => {
+            const ytPreviousBtn = document.querySelector('.previous-button.style-scope.ytmusic-player-bar');
+            if (ytPreviousBtn) {
+                ytPreviousBtn.click();
+                triggerFastRefresh();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const ytNextBtn = document.querySelector('.next-button.style-scope.ytmusic-player-bar');
+            if (ytNextBtn) {
+                ytNextBtn.click();
+                triggerFastRefresh();
+            }
+        });
+    }
 
     if (repeatBtn) {
         repeatBtn.addEventListener('click', () => {
@@ -423,6 +484,75 @@ async function setup() {
             const ytShuffleBtn = document.querySelector('.shuffle.style-scope.ytmusic-player-bar');
             if (ytShuffleBtn) {
                 ytShuffleBtn.click();
+            }
+        });
+    }
+
+    if (customMuteBtn) {
+        customMuteBtn.addEventListener('click', () => {
+            const videoElement = document.querySelector('video');
+            if (videoElement) {
+                videoElement.muted = !videoElement.muted;
+                isMuted = videoElement.muted;
+                updatePipContent();
+            }
+        });
+    }
+
+    if (customLikeBtn) {
+        customLikeBtn.addEventListener('click', () => {
+            const ytLikeBtn = document.querySelector('ytmusic-like-button-renderer[id="like-button-renderer"] #button-shape-like button') || document.querySelector('#button-shape-like button');
+            if (ytLikeBtn) {
+                ytLikeBtn.click();
+                triggerFastRefresh();
+            }
+        });
+    }
+
+    if (customDislikeBtn) {
+        customDislikeBtn.addEventListener('click', () => {
+            const ytDislikeBtn = document.querySelector('ytmusic-like-button-renderer[id="like-button-renderer"] #button-shape-dislike button') || document.querySelector('#button-shape-dislike button');
+            if (ytDislikeBtn) {
+                ytDislikeBtn.click();
+                triggerFastRefresh();
+            }
+        });
+    }
+
+    if (customRewindBtn) {
+        customRewindBtn.addEventListener('click', () => {
+            const videoElement = document.querySelector('video');
+            if (videoElement) {
+                videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
+                triggerFastRefresh();
+            }
+        });
+    }
+
+    if (customForwardBtn) {
+        customForwardBtn.addEventListener('click', () => {
+            const videoElement = document.querySelector('video');
+            if (videoElement) {
+                videoElement.currentTime = Math.min(videoElement.duration, videoElement.currentTime + 10);
+                triggerFastRefresh();
+            }
+        });
+    }
+
+
+    // Load custom control priority config from storage
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['customControls'], (result) => {
+            if (result && result.customControls && Array.isArray(result.customControls)) {
+                customControlsPriority = [null, null, null, null, null, null, null];
+                result.customControls.forEach((btn, idx) => {
+                    if (idx < 7) customControlsPriority[idx] = btn;
+                });
+            } else {
+                customControlsPriority = [...defaultButtons];
+            }
+            if (pipWindow && !pipWindow.closed) {
+                updateCoverSize();
             }
         });
     }
@@ -445,29 +575,32 @@ async function setup() {
         });
     }
 
-    addToPlaylistBtn.addEventListener('click', () => {
-        if (currentSongInfo.title == null || currentSongInfo.title === '') {
-            return;
-        }
-        try {
-            chrome.runtime.sendMessage({ action: "addToPlaylist" }, (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error("Error sending message to background script:", chrome.runtime.lastError);
-                    return;
-                }
-
-                if (!response || !response.success) {
-                    console.error("Could not complete the 'Add to playlist' action on YouTube Music:",
-                        response ? response.reason || "Unknown reason" : "No response");
-
-                    if (response && response.reason && response.reason !== "No YouTube Music tab found") {
-                        alert("There was a problem trying to interact with YouTube Music. Please try opening YouTube Music first.");
+    const addToPlaylistBtn = pipWindow.document.getElementById('addToPlaylist-btn');
+    if (addToPlaylistBtn) {
+        addToPlaylistBtn.addEventListener('click', () => {
+            if (currentSongInfo.title == null || currentSongInfo.title === '') {
+                return;
+            }
+            try {
+                chrome.runtime.sendMessage({ action: "addToPlaylist" }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Error sending message to background script:", chrome.runtime.lastError);
+                        return;
                     }
-                }
-            });
-        } catch (error) {
-        }
-    });
+
+                    if (!response || !response.success) {
+                        console.error("Could not complete the 'Add to playlist' action on YouTube Music:",
+                            response ? response.reason || "Unknown reason" : "No response");
+
+                        if (response && response.reason && response.reason !== "No YouTube Music tab found") {
+                            alert("There was a problem trying to interact with YouTube Music. Please try opening YouTube Music first.");
+                        }
+                    }
+                });
+            } catch (error) {
+            }
+        });
+    }
 
     const progressContainer = pipWindow.document.querySelector('.progress-container');
     if (progressContainer) {
@@ -551,6 +684,12 @@ async function setup() {
                 miniPlayerRoot.classList.add('lyrics-mode');
                 lyricsToggleBtn.classList.add('active');
                 if (currentLyricsSongKey !== `${currentSongInfo.title}-${currentSongInfo.artist}`) {
+                    fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
+                } else if (lyricsData && lyricsData.length > 0) {
+                    renderLyricsList();
+                } else {
+                    // Reset key if previous attempt resulted in no lyrics or was interrupted
+                    currentLyricsSongKey = '';
                     fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
                 }
                 startLyricsAnimLoop();
@@ -1037,6 +1176,82 @@ document.addEventListener('request-pip-window', async (event) => {
                         wrapper.style.height = targetPx;
                     }
                 }
+
+                // Dynamic responsive control buttons visibility logic
+                const controlsContainer = root.querySelector('.controls');
+                if (controlsContainer) {
+                    const containerWidth = controlsContainer.offsetWidth || w;
+                    
+                    // Estimated average width of a button is 32px + 4px gap.
+                    const optionalBtnWidth = 32 + 4; // 36px (width + gap)
+
+                    // Priority rank for each slot index (0 to 6) corresponding to placeholders: [6, 4, 1, 2, 3, 5, 7]
+                    // Slot 2, 3, 4 (placeholders 1, 2, 3) have highest priority (ranks 1, 2, 3)
+                    const slotPriorityRank = [6, 4, 1, 2, 3, 5, 7];
+
+                    // Find non-null items with their slot index and priority rank
+                    const activeSlots = [];
+                    customControlsPriority.forEach((btnId, slotIdx) => {
+                        if (btnId !== null) {
+                            activeSlots.push({
+                                btnId: btnId,
+                                slotIdx: slotIdx,
+                                rank: slotPriorityRank[slotIdx] || 99
+                            });
+                        }
+                    });
+
+                    // Calculate how many buttons we can fit
+                    let allowedOptionalCount = Math.floor(containerWidth / optionalBtnWidth);
+                    allowedOptionalCount = Math.max(1, Math.min(allowedOptionalCount, activeSlots.length, 12));
+
+                    // Sort active slots by priority rank to pick the top `allowedOptionalCount` buttons
+                    const sortedByPriority = [...activeSlots].sort((a, b) => a.rank - b.rank);
+                    const selectedSlots = sortedByPriority.slice(0, allowedOptionalCount);
+
+                    // Re-sort selected slots back by their original slotIdx (left-to-right order)
+                    selectedSlots.sort((a, b) => a.slotIdx - b.slotIdx);
+
+                    // Generate a cache key for current visible buttons in order
+                    const currentKeys = selectedSlots.map(s => s.btnId).join(',');
+                    if (controlsContainer._lastRenderedKeys !== currentKeys) {
+                        controlsContainer._lastRenderedKeys = currentKeys;
+
+                        // Map of button IDs to their corresponding DOM elements
+                        const btnDomMap = {
+                            prev: root.querySelector('#prev-btn'),
+                            play: root.querySelector('#playPause-btn'),
+                            next: root.querySelector('#next-btn'),
+                            lyrics: root.querySelector('#lyrics-toggle-btn'),
+                            repeat: root.querySelector('#repeat-btn'),
+                            shuffle: root.querySelector('#shuffle-btn'),
+                            mute: root.querySelector('#mute-btn'),
+                            like: root.querySelector('#like-btn'),
+                            dislike: root.querySelector('#dislike-btn'),
+                            rewind: root.querySelector('#rewind-btn'),
+                            forward: root.querySelector('#forward-btn')
+                        };
+
+                        // First, hide all buttons by default
+                        Object.values(btnDomMap).forEach(btn => {
+                            if (btn) btn.classList.add('hide');
+                        });
+
+                        // Append active buttons to the container in their exact slot layout order!
+                        const fragment = pipWindow.document.createDocumentFragment();
+                        
+                        selectedSlots.forEach(item => {
+                            const btnEl = btnDomMap[item.btnId];
+                            if (btnEl) {
+                                btnEl.classList.remove('hide');
+                                fragment.appendChild(btnEl);
+                            }
+                        });
+
+                        // Append the ordered visible elements back to the container
+                        controlsContainer.appendChild(fragment);
+                    }
+                }
             }
 
             function throttledUpdateCoverSize() {
@@ -1344,9 +1559,153 @@ let isLyricsSynced = false;
 
 let currentLyricsSource = 'Source: LRCLIB';
 
+const LYRICS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 Days in milliseconds
+
+function cleanExpiredLyricsCache() {
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+    chrome.storage.local.get(null, (items) => {
+        if (chrome.runtime.lastError || !items) return;
+        const now = Date.now();
+        const keysToRemove = [];
+        Object.keys(items).forEach(key => {
+            if (key.startsWith('lyric_cache_')) {
+                const cached = items[key];
+                if (!cached || !cached.timestamp || (now - cached.timestamp > LYRICS_CACHE_TTL_MS)) {
+                    keysToRemove.push(key);
+                }
+            }
+        });
+        if (keysToRemove.length > 0) {
+            chrome.storage.local.remove(keysToRemove);
+        }
+    });
+}
+// Clean expired lyrics cache once on load
+cleanExpiredLyricsCache();
+
+function getLyricsFromStorage(songKey) {
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+            return resolve(null);
+        }
+        const storageKey = 'lyric_cache_' + songKey;
+        chrome.storage.local.get([storageKey], (result) => {
+            if (chrome.runtime.lastError || !result || !result[storageKey]) {
+                return resolve(null);
+            }
+            const cached = result[storageKey];
+            const now = Date.now();
+            if (now - cached.timestamp > LYRICS_CACHE_TTL_MS) {
+                chrome.storage.local.remove([storageKey]);
+                return resolve(null);
+            }
+            resolve(cached);
+        });
+    });
+}
+
+function saveLyricsToStorage(songKey, data, source) {
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+    const storageKey = 'lyric_cache_' + songKey;
+    const cacheObj = {
+        timestamp: Date.now(),
+        data: data,
+        source: source
+    };
+    chrome.storage.local.set({ [storageKey]: cacheObj });
+}
+
+let ytmBrowseLyrics = null;
+
+// Intercept YouTube Music API response for Lyrics
+(function setupYtmApiInterceptor() {
+    if (window._lyraInterceptorSetup) return;
+    window._lyraInterceptorSetup = true;
+
+    const origFetch = window.fetch;
+    window.fetch = async function (request, init) {
+        const urlString = typeof request === "string" ? request : request?.url || "";
+        const response = await origFetch.apply(this, arguments);
+
+        if (urlString.includes("/youtubei/v1/browse")) {
+            try {
+                const clone = response.clone();
+                clone.json().then(data => {
+                    if (!data) return;
+                    // Parse YouTube Music Browse API response for lyrics tab data
+                    const contents = data.contents?.singleColumnBrowseResultsRenderer?.tabs;
+                    if (Array.isArray(contents)) {
+                        for (const tab of contents) {
+                            const tabRenderer = tab.tabRenderer;
+                            if (tabRenderer?.pageType === "MUSIC_PAGE_TYPE_TRACK_LYRICS" || tabRenderer?.title?.toLowerCase() === "lyrics") {
+                                const sectionList = tabRenderer.content?.sectionListRenderer?.contents;
+                                if (Array.isArray(sectionList)) {
+                                    for (const section of sectionList) {
+                                        const shelf = section.musicDescriptionShelfRenderer;
+                                        if (shelf && shelf.description && shelf.description.runs) {
+                                            const text = shelf.description.runs.map(r => r.text).join('');
+                                            if (text.trim().length > 0) {
+                                                ytmBrowseLyrics = text.trim();
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }).catch(() => {});
+            } catch (e) {}
+        }
+        return response;
+    };
+})();
+
+function getLyricsFromDom() {
+    try {
+        // 1. Check if YTM Browse API interceptor captured lyrics
+        if (ytmBrowseLyrics && ytmBrowseLyrics.length > 0) {
+            return ytmBrowseLyrics;
+        }
+
+        // 2. Exact DOM Selectors based on YouTube Music HTML Structure
+        const selectors = [
+            'ytmusic-description-shelf-renderer .description[split-lines]',
+            'ytmusic-description-shelf-renderer .description',
+            '.non-expandable.description',
+            'ytmusic-description-shelf-renderer yt-formatted-string.description',
+            '.non-synced-lyrics'
+        ];
+
+        for (const sel of selectors) {
+            const elements = document.querySelectorAll(sel);
+            for (const el of elements) {
+                // Use textContent to preserve linebreaks from split-lines attribute
+                const rawText = el.textContent || el.innerText || '';
+                const text = rawText.trim();
+                if (text.length > 0 && !text.toLowerCase().includes('lyrics not available') && !text.toLowerCase().includes('không có lời')) {
+                    // Split lines, trim each, filter out source footer lines
+                    const lines = text.split('\n')
+                        .map(l => l.trim())
+                        .filter(l => l.length > 0 && !l.toLowerCase().startsWith('source:') && !l.toLowerCase().startsWith('lyricist'));
+                    if (lines.length > 0) {
+                        return lines.join('\n');
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+    return null;
+}
+
 async function fetchSyncedLyrics(title, artist) {
     const key = `${title}-${artist}`;
-    if (currentLyricsSongKey === key) return;
+    if (currentLyricsSongKey === key) {
+        if (lyricsData && lyricsData.length > 0) {
+            renderLyricsList();
+        }
+        return;
+    }
     currentLyricsSongKey = key;
     lyricsData = [];
     currentActiveLineIndex = -1;
@@ -1362,92 +1721,188 @@ async function fetchSyncedLyrics(title, artist) {
         return;
     }
 
+    // 1. Check local storage cache first (30-day TTL)
+    const cachedLyrics = await getLyricsFromStorage(key);
+    if (cachedLyrics && cachedLyrics.data) {
+        currentLyricsSource = cachedLyrics.source || 'Source: LRCLIB (Cached)';
+        if (processLyricsData(cachedLyrics.data, false)) {
+            return;
+        }
+    }
+
+    // 2. Prioritize online API search (LRCLIB parallel fetch) for synced/karaoke lyrics first
     const headers = {
         'Lrclib-Client': 'Star_s YTM v1.0.0 (https://github.com/star-ytm)'
     };
 
     const cleanTitle = title.replace(/\(feat\..*?\)/i, '').replace(/\[.*?\]/g, '').replace(/\(Official.*?\)/i, '').trim();
+    const titleCandidates = [];
+    if (cleanTitle.includes('-')) {
+        cleanTitle.split('-').map(t => t.trim()).filter(Boolean).reverse().forEach(subT => {
+            if (!titleCandidates.includes(subT)) titleCandidates.push(subT);
+        });
+    }
+    if (!titleCandidates.includes(cleanTitle)) {
+        titleCandidates.push(cleanTitle);
+    }
+
     const artistParts = artist.split(/[,&•]|\bft\.\b|\bfeat\.\b/i).map(a => a.trim()).filter(Boolean);
     const primaryArtist = artistParts[0] || artist.split('•')[0].split(',')[0].trim();
     const durationSec = Math.round(currentSongInfo.duration || 0);
 
-    try {
-        let params = `track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`;
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 2500) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const res = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return res;
+        } catch (e) {
+            clearTimeout(id);
+            throw e;
+        }
+    };
+
+    // Construct all URL queries to run in PARALLEL
+    const fetchPromises = [];
+
+    titleCandidates.forEach(targetTitle => {
+        let params = `track_name=${encodeURIComponent(targetTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`;
         if (durationSec > 0) {
             params += `&duration=${durationSec}`;
         }
+        
+        // Exact get with duration
+        fetchPromises.push((async () => {
+            try {
+                const res = await fetchWithTimeout(`https://lrclib.net/api/get?${params}`, { headers });
+                if (res.ok) return await res.json();
+            } catch (e) {}
+            return null;
+        })());
 
-        let response = await fetch(`https://lrclib.net/api/get?${params}`, { headers });
-
-        if (!response.ok && durationSec > 0) {
-            response = await fetch(`https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`, { headers });
+        // Exact get without duration
+        if (durationSec > 0) {
+            fetchPromises.push((async () => {
+                try {
+                    const res = await fetchWithTimeout(`https://lrclib.net/api/get?track_name=${encodeURIComponent(targetTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`, { headers });
+                    if (res.ok) return await res.json();
+                } catch (e) {}
+                return null;
+            })());
         }
 
-        if (response.ok) {
-            const data = await response.json();
-            currentLyricsSource = 'Source: LRCLIB';
-            if (processLyricsData(data)) return;
-        }
+        // Search by artist parts
+        artistParts.forEach(part => {
+            fetchPromises.push((async () => {
+                try {
+                    const res = await fetchWithTimeout(`https://lrclib.net/api/search?track_name=${encodeURIComponent(targetTitle)}&artist_name=${encodeURIComponent(part)}`, { headers });
+                    if (res.ok) {
+                        const results = await res.json();
+                        if (Array.isArray(results) && results.length > 0) {
+                            return results.find(item => item.syncedLyrics) || results[0];
+                        }
+                    }
+                } catch (e) {}
+                return null;
+            })());
+        });
 
-        for (const part of artistParts) {
-            const searchResponse = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(part)}`, { headers });
-            if (searchResponse.ok) {
-                const searchResults = await searchResponse.json();
-                if (Array.isArray(searchResults) && searchResults.length > 0) {
-                    const syncedMatch = searchResults.find(item => item.syncedLyrics) || searchResults[0];
-                    currentLyricsSource = 'Source: LRCLIB';
-                    if (processLyricsData(syncedMatch)) return;
+        // Search q
+        fetchPromises.push((async () => {
+            try {
+                const res = await fetchWithTimeout(`https://lrclib.net/api/search?q=${encodeURIComponent(targetTitle + ' ' + primaryArtist)}`, { headers });
+                if (res.ok) {
+                    const results = await res.json();
+                    if (Array.isArray(results) && results.length > 0) {
+                        return results.find(item => item.syncedLyrics) || results[0];
+                    }
+                }
+            } catch (e) {}
+            return null;
+        })());
+    });
+
+    // Fallback search by title only
+    fetchPromises.push((async () => {
+        try {
+            const res = await fetchWithTimeout(`https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}`, { headers });
+            if (res.ok) {
+                const results = await res.json();
+                if (Array.isArray(results) && results.length > 0) {
+                    return results.find(item => item.syncedLyrics) || results[0];
                 }
             }
-        }
-
-        const qResponse = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + primaryArtist)}`, { headers });
-        if (qResponse.ok) {
-            const qResults = await qResponse.json();
-            if (Array.isArray(qResults) && qResults.length > 0) {
-                const syncedMatch = qResults.find(item => item.syncedLyrics) || qResults[0];
-                currentLyricsSource = 'Source: LRCLIB';
-                if (processLyricsData(syncedMatch)) return;
-            }
-        }
-    } catch (e) {
-        console.warn('LrcLib fetch error:', e);
-    }
+        } catch (e) {}
+        return null;
+    })());
 
     try {
-        for (const part of artistParts) {
-            const ovhUrl = `https://api.lyrics.ovh/v1/${encodeURIComponent(part)}/${encodeURIComponent(cleanTitle)}`;
-            const ovhRes = await fetch(ovhUrl);
-            if (ovhRes.ok) {
-                const ovhData = await ovhRes.json();
-                if (ovhData && ovhData.lyrics && ovhData.lyrics.trim().length > 0) {
-                    currentLyricsSource = 'Source: Lyrics.ovh';
-                    if (processLyricsData({ plainLyrics: ovhData.lyrics })) return;
-                }
-            }
+        const results = await Promise.all(fetchPromises);
+        const validMatch = results.find(data => data && (data.syncedLyrics || data.plainLyrics));
+        if (validMatch) {
+            currentLyricsSource = 'Source: LRCLIB';
+            if (processLyricsData(validMatch, true, key)) return;
         }
-    } catch (e) {
-        console.warn('Lyrics.ovh fetch error:', e);
+    } catch (e) {}
+
+    // 3. Fallback: Extract from YTM DOM / auto-click LYRICS tab if API has no lyrics
+    let domLyrics = getLyricsFromDom();
+    if (!domLyrics) {
+        const paperTabs = Array.from(document.querySelectorAll('tp-yt-paper-tab.tab-header, tp-yt-paper-tab'));
+        const lyricsTabBtn = paperTabs.find(tab => tab.textContent && tab.textContent.trim().toLowerCase().includes('lyrics'));
+        if (lyricsTabBtn) {
+            lyricsTabBtn.click();
+            domLyrics = await new Promise(resolve => {
+                let resolved = false;
+                let observer = null;
+                const timer = setTimeout(() => {
+                    if (resolved) return;
+                    resolved = true;
+                    if (observer) observer.disconnect();
+                    resolve(getLyricsFromDom());
+                }, 2500);
+
+                const container = document.querySelector('#tab-renderer') || document.body;
+                observer = new MutationObserver(() => {
+                    const found = getLyricsFromDom();
+                    if (found && !resolved) {
+                        resolved = true;
+                        clearTimeout(timer);
+                        observer.disconnect();
+                        resolve(found);
+                    }
+                });
+                observer.observe(container, { childList: true, subtree: true, characterData: true });
+            });
+        }
+    }
+
+    if (domLyrics) {
+        currentLyricsSource = 'Source: YouTube Music';
+        if (processLyricsData({ plainLyrics: domLyrics }, true, key)) {
+            return;
+        }
     }
 
     if (statusEl) statusEl.textContent = 'Lyrics not found (._.)';
 }
 
-function processLyricsData(data) {
+function processLyricsData(data, triggerSave = false, songKey = '') {
     if (!data) return false;
+    let success = false;
     if (!isMvMode && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
         isLyricsSynced = true;
         lyricsData = parseLrc(data.syncedLyrics);
         renderLyricsList();
-        return true;
+        success = true;
     } else if (data.plainLyrics && data.plainLyrics.trim().length > 0) {
         isLyricsSynced = false;
         const plainLines = data.plainLyrics.split('\n').filter(l => l.trim().length > 0);
         lyricsData = plainLines.map(text => ({ time: null, text }));
         renderLyricsList();
-        return true;
+        success = true;
     } else if (isMvMode && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-
         isLyricsSynced = false;
         const strippedLines = data.syncedLyrics
             .split('\n')
@@ -1455,9 +1910,14 @@ function processLyricsData(data) {
             .filter(line => line.length > 0 && !line.startsWith('[') && !line.startsWith('ve:'));
         lyricsData = strippedLines.map(text => ({ time: null, text }));
         renderLyricsList();
-        return true;
+        success = true;
     }
-    return false;
+
+    if (success && triggerSave && songKey) {
+        saveLyricsToStorage(songKey, data, currentLyricsSource);
+    }
+
+    return success;
 }
 
 const romanizeCache = new Map();
@@ -1477,7 +1937,8 @@ async function fetchRomanizedText(text) {
             if (Array.isArray(data) && Array.isArray(data[0])) {
                 const romItem = data[0].find(item => Array.isArray(item) && item[3]);
                 if (romItem && romItem[3]) {
-                    const romanized = romItem[3].trim();
+                    // Remove non-printable control characters, math symbols like ≡ (U+2261), and clean up
+                    const romanized = romItem[3].replace(/[\u2200-\u2BFF\u2000-\u206F\u0000-\u001F]/g, '').replace(/\s+/g, ' ').trim();
                     romanizeCache.set(text, romanized);
                     return romanized;
                 }
@@ -1487,7 +1948,7 @@ async function fetchRomanizedText(text) {
     return null;
 }
 
-function renderLyricsList() {
+async function renderLyricsList() {
     if (!pipWindow || pipWindow.closed) return;
     const statusEl = pipWindow.document.getElementById('lyrics-status');
     const listEl = pipWindow.document.getElementById('lyrics-list');
@@ -1497,6 +1958,21 @@ function renderLyricsList() {
         return;
     }
 
+    if (statusEl) statusEl.textContent = 'Translating lyrics...';
+
+    // Pre-fetch all romanized lines in parallel if needed
+    const cjkRegex = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\u0400-\u04ff]/;
+    const hasCJK = lyricsData.some(item => cjkRegex.test(item.text));
+
+    if (hasCJK) {
+        await Promise.all(lyricsData.map(async (item) => {
+            if (cjkRegex.test(item.text)) {
+                await fetchRomanizedText(item.text);
+            }
+        }));
+    }
+
+    if (!pipWindow || pipWindow.closed) return;
     if (statusEl) statusEl.textContent = '';
     listEl.innerHTML = '';
 
@@ -1544,18 +2020,14 @@ function renderLyricsList() {
 
         vocalsGroup.appendChild(vocals);
 
-        if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\u0400-\u04ff]/.test(item.text)) {
-            fetchRomanizedText(item.text).then(romText => {
-                if (romText && pipWindow && !pipWindow.closed) {
-                    let romEl = vocalsGroup.querySelector('.lyra-romanized');
-                    if (!romEl) {
-                        romEl = pipWindow.document.createElement('div');
-                        romEl.className = 'lyra-romanized';
-                        vocalsGroup.appendChild(romEl);
-                    }
-                    romEl.textContent = romText;
-                }
-            });
+        if (cjkRegex.test(item.text)) {
+            const romText = romanizeCache.get(item.text);
+            if (romText) {
+                const romEl = pipWindow.document.createElement('div');
+                romEl.className = 'lyra-romanized';
+                romEl.textContent = romText;
+                vocalsGroup.appendChild(romEl);
+            }
         }
 
         vocalsGroup.addEventListener('click', () => {
@@ -1635,17 +2107,22 @@ function updateActiveLyricLine(currentTime, deltaTime) {
     if (activeIndex !== currentActiveLineIndex) {
         currentActiveLineIndex = activeIndex;
 
-        const allVocals = listEl.querySelectorAll('.lyra-line');
-        allVocals.forEach((vocals, index) => {
+        const allWraps = listEl.querySelectorAll('.lyra-line-wrap');
+        allWraps.forEach((wrap, index) => {
+            const vocals = wrap.querySelector('.lyra-line');
             if (index === activeIndex) {
-                vocals.classList.add('active');
-                vocals.classList.remove('sung');
-                vocals.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (vocals) {
+                    vocals.classList.add('active');
+                    vocals.classList.remove('sung');
+                }
+                wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else if (index < activeIndex) {
-                vocals.classList.add('sung');
-                vocals.classList.remove('active');
+                if (vocals) {
+                    vocals.classList.add('sung');
+                    vocals.classList.remove('active');
+                }
             } else {
-                vocals.classList.remove('active', 'sung');
+                if (vocals) vocals.classList.remove('active', 'sung');
             }
         });
     }

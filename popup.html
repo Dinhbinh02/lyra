@@ -12,52 +12,154 @@
   <div class="popup">
 
     <div class="header">
-      <h1 class="title">Lyra</h1>
+      <div class="header-top-row">
+        <h1 class="title">Lyra</h1>
+        <button id="settings-toggle-btn" class="settings-btn-icon" title="Customize Toolbar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
       <p class="subtitle">Picture-in-Picture Mini Player for YouTube Music</p>
     </div>
 
-    <div class="section">
-      <div class="section-label">HOW TO USE</div>
-      <div class="steps">
-        <div class="step-item">
-          <span class="step-num">1</span>
-          <div class="step-content">
-            Open <a href="https://music.youtube.com" target="_blank" class="yt-link">YouTube Music ↗</a>
+    <div id="main-how-to-use-section">
+      <div class="section">
+        <div class="section-label">HOW TO USE</div>
+        <div class="steps">
+          <div class="step-item">
+            <span class="step-num">1</span>
+            <div class="step-content">
+              Open <a href="https://music.youtube.com" target="_blank" class="yt-link">YouTube Music ↗</a>
+            </div>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-num">2</span>
-          <div class="step-content">Play any track or playlist</div>
-        </div>
-        <div class="step-item">
-          <span class="step-num">3</span>
-          <div class="step-content">Click the button <span class="pip-icon-badge"><svg
-                xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 0 24 24" width="14" fill="currentColor"
-                style="display:inline-block;vertical-align:middle;">
-                <path
-                  d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z" />
-              </svg></span> on player bar</div>
+          <div class="step-item">
+            <span class="step-num">2</span>
+            <div class="step-content">Play any track or playlist</div>
+          </div>
+          <div class="step-item">
+            <span class="step-num">3</span>
+            <div class="step-content">Click the button <span class="pip-icon-badge"><svg
+                  xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 0 24 24" width="14" fill="currentColor"
+                  class="pip-inline-svg">
+                  <path
+                    d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z" />
+                </svg></span> on player bar</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="tip-section">
-      <p class="tip-text">
-        You can pair with
-        <a href="https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh?hl=en" target="_blank" class="ublock-link">
-          <svg class="ublock-icon" viewBox="0 0 128 144">
-            <path d="M64 4L12 24v38c0 35.2 22.2 68.3 52 76 29.8-7.7 52-40.8 52-76V24L64 4z" fill="#800000"/>
-            <path d="M46 44c-3.9 0-7 3.1-7 7v24c0 3.9 3.1 7 7 7s7-3.1 7-7V51c0-3.9-3.1-7-7-7zm36 0c-11 0-20 9-20 20s9 20 20 20 20-9 20-20-9-20-20-20zm0 11c5 0 9 4 9 9s-4 9-9 9-9-4-9-9 4-9 9-9z" fill="#ffffff"/>
-          </svg>
-          uBlock Origin Lite
-        </a>
-        for a seamless music experience.
-      </p>
+    <div class="section hide" id="toolbar-customization-section">
+      <div class="section-label">TOOLBAR CUSTOMIZATION</div>
+      
+      <div class="active-layout-header">
+        <div class="section-sublabel">Active Layout</div>
+        <button id="reset-layout-btn" title="Reset to Default Layout">Reset</button>
+      </div>
+      <div class="slots-row">
+        <!-- 7 Dynamic Slots (1 to 7, Dashed outline) -->
+        <div class="slot optional-slot" data-slot="0"><span class="placeholder-num">6</span></div>
+        <div class="slot optional-slot" data-slot="1"><span class="placeholder-num">4</span></div>
+        <div class="slot optional-slot middle-slot" data-slot="2"><span class="placeholder-num">1</span></div>
+        <div class="slot optional-slot middle-slot" data-slot="3"><span class="placeholder-num">2</span></div>
+        <div class="slot optional-slot middle-slot" data-slot="4"><span class="placeholder-num">3</span></div>
+        <div class="slot optional-slot" data-slot="5"><span class="placeholder-num">5</span></div>
+        <div class="slot optional-slot" data-slot="6"><span class="placeholder-num">7</span></div>
+      </div>
+
+      <div class="section-sublabel">Available Buttons (Click to Add)</div>
+      <div class="available-list">
+        <div class="available-item" data-id="prev" title="Previous Track">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <polygon points="19 20 9 12 19 4 19 20"></polygon>
+            <line x1="5" y1="19" x2="5" y2="5"></line>
+          </svg>Previous
+        </div>
+        <div class="available-item" data-id="play" title="Play / Pause">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <polygon points="6 3 20 12 6 21"></polygon>
+          </svg>Play/Pause
+        </div>
+        <div class="available-item" data-id="next" title="Next Track">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <polygon points="5 4 15 12 5 20 5 4"></polygon>
+            <line x1="19" y1="5" x2="19" y2="19"></line>
+          </svg>Next
+        </div>
+        <div class="available-item" data-id="lyrics" title="Toggle Lyrics">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>Lyrics
+        </div>
+        <div class="available-item" data-id="repeat" title="Repeat Mode">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>Repeat
+        </div>
+        <div class="available-item" data-id="shuffle" title="Shuffle Mode">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <polyline points="16 3 21 3 21 8"></polyline>
+            <line x1="4" y1="20" x2="21" y2="3"></line>
+            <polyline points="21 16 21 21 16 21"></polyline>
+            <line x1="15" y1="15" x2="21" y2="21"></line>
+            <line x1="4" y1="4" x2="9" y2="9"></line>
+          </svg>Shuffle
+        </div>
+        <div class="available-item" data-id="mute" title="Mute / Unmute">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>Mute
+        </div>
+        <div class="available-item" data-id="like" title="Like Track">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+          </svg>Like
+        </div>
+        <div class="available-item" data-id="dislike" title="Dislike Track">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path>
+          </svg>Dislike
+        </div>
+        <div class="available-item" data-id="rewind" title="Rewind 10s">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0-.57-8.38l5.67-5.67"></path>
+          </svg>Rewind
+        </div>
+        <div class="available-item" data-id="forward" title="Fast Forward 10s">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="available-item-svg">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1 .57-8.38l-5.67-5.67"></path>
+          </svg>Forward
+        </div>
+      </div>
     </div>
 
-    <div class="feedback">
-      <p>Every piece of feedback is deeply appreciated and helps Lyra get better. If you have any thoughts or ideas,
-        please <a href="mailto:binhbuidinh60@gmail.com" target="_blank" class="email-link">send an email</a>.</p>
+    <div id="main-footer-tips">
+      <div class="tip-section">
+        <p class="tip-text">
+          You can pair with
+          <a href="https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh?hl=en" target="_blank" class="ublock-link">
+            <svg class="ublock-icon" viewBox="0 0 128 144">
+              <path d="M64 4L12 24v38c0 35.2 22.2 68.3 52 76 29.8-7.7 52-40.8 52-76V24L64 4z" fill="#800000"/>
+              <path d="M46 44c-3.9 0-7 3.1-7 7v24c0 3.9 3.1 7 7 7s7-3.1 7-7V51c0-3.9-3.1-7-7-7zm36 0c-11 0-20 9-20 20s9 20 20 20 20-9 20-20-9-20-20-20zm0 11c5 0 9 4 9 9s-4 9-9 9-9-4-9-9 4-9 9-9z" fill="#ffffff"/>
+            </svg>
+            uBlock Origin Lite
+          </a>
+          for a seamless music experience.
+        </p>
+      </div>
+
+      <div class="feedback">
+        <p>Every piece of feedback is deeply appreciated and helps Lyra get better. If you have any thoughts or ideas,
+          please <a href="mailto:binhbuidinh60@gmail.com" target="_blank" class="email-link">send an email</a>.</p>
+      </div>
     </div>
   </div>
 
