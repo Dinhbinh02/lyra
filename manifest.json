@@ -48,7 +48,8 @@
       {
          "resources": [
             "miniplayer.css",
-            "miniplayer.html"
+            "miniplayer.html",
+            "bridge.js"
          ],
          "matches": [
             "*://music.youtube.com/*"

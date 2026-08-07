@@ -30,6 +30,7 @@ async function build() {
     fs.copyFileSync('manifest.json', 'dist/manifest.json');
     fs.copyFileSync('miniplayer.html', 'dist/miniplayer.html');
     fs.copyFileSync('popup.html', 'dist/popup.html');
+    fs.copyFileSync('bridge.js', 'dist/bridge.js');
     
     if (fs.existsSync('icons')) {
         copyDirSync('icons', 'dist/icons');
@@ -45,6 +46,7 @@ async function build() {
             entryPoints: [
                 'background.js',
                 'content.js',
+                'bridge.js',
                 'popup.js',
                 'miniplayer.css',
                 'popup.css'

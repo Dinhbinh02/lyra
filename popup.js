@@ -68,6 +68,21 @@ document.addEventListener('DOMContentLoaded', () => {
             <circle cx="6" cy="18" r="3"></circle>
             <circle cx="18" cy="16" r="3"></circle>
         </svg>`,
+        queue: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+        </svg>`,
+        playlist: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15V6"></path>
+            <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"></path>
+            <line x1="12" y1="12" x2="3" y2="12"></line>
+            <line x1="16" y1="6" x2="3" y2="6"></line>
+            <line x1="12" y1="18" x2="3" y2="18"></line>
+        </svg>`,
         prev: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="19 20 9 12 19 4 19 20"></polygon>
             <line x1="5" y1="19" x2="5" y2="5"></line>
@@ -130,9 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Implement HTML5 Drag and Drop
+    // Implement HTML5 Drag and Drop with live hover swapping
     let draggedBtnId = null;
     let draggedFromSlotIdx = null;
+    let originalButtonsState = null;
+    let lastHoveredSlotIdx = null;
 
     // Make available items draggable
     availableItems.forEach(item => {
@@ -144,12 +161,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             draggedBtnId = item.getAttribute('data-id');
             draggedFromSlotIdx = null;
+            originalButtonsState = [...activeButtons];
+            lastHoveredSlotIdx = null;
             item.style.opacity = '0.4';
             document.body.classList.add('dragging-active');
         });
         item.addEventListener('dragend', () => {
             item.style.opacity = '1';
+            if (originalButtonsState) {
+                activeButtons = [...originalButtonsState];
+                renderToolbar();
+            }
             draggedBtnId = null;
+            draggedFromSlotIdx = null;
+            originalButtonsState = null;
+            lastHoveredSlotIdx = null;
             document.body.classList.remove('dragging-active');
         });
     });
@@ -166,23 +192,70 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             draggedBtnId = activeButtons[index];
             draggedFromSlotIdx = index;
+            originalButtonsState = [...activeButtons];
+            lastHoveredSlotIdx = index;
             slot.style.opacity = '0.4';
             document.body.classList.add('dragging-active');
         });
 
         slot.addEventListener('dragend', () => {
             slot.style.opacity = '1';
+            // If ended without drop on a valid slot target, revert
+            if (originalButtonsState) {
+                activeButtons = [...originalButtonsState];
+                renderToolbar();
+            }
             draggedBtnId = null;
             draggedFromSlotIdx = null;
+            originalButtonsState = null;
+            lastHoveredSlotIdx = null;
             document.body.classList.remove('dragging-active');
         });
 
         slot.addEventListener('dragover', (e) => {
             e.preventDefault();
             slot.classList.add('drag-over');
+
+            if (!draggedBtnId) return;
+
+            // Calculate threshold (50% horizontal center of slot)
+            const rect = slot.getBoundingClientRect();
+            const mouseX = e.clientX;
+            const threshold = rect.left + rect.width / 2;
+
+            if (draggedFromSlotIdx !== null) {
+                // Dragging between slots
+                if (index !== lastHoveredSlotIdx) {
+                    lastHoveredSlotIdx = index;
+                    
+                    // Live swap activeButtons positions
+                    const currentIdx = activeButtons.indexOf(draggedBtnId);
+                    if (currentIdx !== -1 && currentIdx !== index) {
+                        const temp = activeButtons[index];
+                        activeButtons[index] = draggedBtnId;
+                        activeButtons[currentIdx] = temp;
+                        renderToolbar();
+                        
+                        // Keep opacity on currently dragged item
+                        const newSlot = optionalSlots[activeButtons.indexOf(draggedBtnId)];
+                        if (newSlot) newSlot.style.opacity = '0.4';
+                    }
+                }
+            } else {
+                // Dragging from available list preview
+                if (index !== lastHoveredSlotIdx) {
+                    lastHoveredSlotIdx = index;
+                    activeButtons = [...originalButtonsState];
+                    activeButtons[index] = draggedBtnId;
+                    renderToolbar();
+                    
+                    const targetSlot = optionalSlots[index];
+                    if (targetSlot) targetSlot.style.opacity = '0.4';
+                }
+            }
         });
 
-        slot.addEventListener('dragleave', () => {
+        slot.addEventListener('dragleave', (e) => {
             slot.classList.remove('drag-over');
         });
 
@@ -192,17 +265,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!draggedBtnId) return;
 
-            if (draggedFromSlotIdx !== null) {
-                // Swap buttons between slots
-                const targetBtnId = activeButtons[index];
-                activeButtons[index] = draggedBtnId;
-                activeButtons[draggedFromSlotIdx] = targetBtnId; // Swap or set null
-            } else {
-                // Dragged from available list
-                activeButtons[index] = draggedBtnId;
-            }
+            // Commit change
+            originalButtonsState = null; // Don't revert on dragend
             saveConfig();
             renderToolbar();
+
+            draggedBtnId = null;
+            draggedFromSlotIdx = null;
+            lastHoveredSlotIdx = null;
+            document.body.classList.remove('dragging-active');
         });
     });
 
@@ -258,11 +329,69 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Background & Animation Settings
+    const brightnessSlider = document.getElementById('bg-brightness-slider');
+    const brightnessVal = document.getElementById('bg-brightness-val');
+    const blurSlider = document.getElementById('bg-blur-slider');
+    const blurVal = document.getElementById('bg-blur-val');
+    const speedSlider = document.getElementById('bg-speed-slider');
+    const speedVal = document.getElementById('bg-speed-val');
+
+    function updateBrightnessUI(val) {
+        if (brightnessSlider) brightnessSlider.value = val;
+        if (brightnessVal) brightnessVal.textContent = `${val}%`;
+    }
+
+    function updateBlurUI(val) {
+        if (blurSlider) blurSlider.value = val;
+        if (blurVal) blurVal.textContent = `${val}%`;
+    }
+
+    function updateSpeedUI(val) {
+        if (speedSlider) speedSlider.value = val;
+        if (speedVal) speedVal.textContent = `${(val / 10).toFixed(1)}x`;
+    }
+
+    if (brightnessSlider) {
+        brightnessSlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value, 10);
+            if (isNaN(val)) val = 100;
+            val = Math.max(20, Math.min(150, val));
+            updateBrightnessUI(val);
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ bgBrightness: val });
+            }
+        });
+    }
+
+    if (blurSlider) {
+        blurSlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value, 10);
+            if (isNaN(val)) val = 100;
+            val = Math.max(70, Math.min(150, val));
+            updateBlurUI(val);
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ bgBlur: val });
+            }
+        });
+    }
+
+    if (speedSlider) {
+        speedSlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value, 10);
+            if (isNaN(val)) val = 10;
+            val = Math.max(0, Math.min(30, val));
+            updateSpeedUI(val);
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ bgSpeed: val / 10 });
+            }
+        });
+    }
+
     // Load saved configuration from storage
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(['customControls'], (result) => {
+        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed'], (result) => {
             if (result && result.customControls && Array.isArray(result.customControls)) {
-                // Handle migrating old formats or loading fixed size array
                 activeButtons = [null, null, null, null, null, null, null];
                 result.customControls.forEach((btn, idx) => {
                     if (idx < 7) activeButtons[idx] = btn;
@@ -271,13 +400,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeButtons = [...defaultButtons];
             }
             renderToolbar();
+
+            const savedBrightness = result?.bgBrightness !== undefined ? result.bgBrightness : 100;
+            updateBrightnessUI(savedBrightness);
+
+            const savedBlur = result?.bgBlur !== undefined ? result.bgBlur : 100;
+            updateBlurUI(savedBlur);
+
+            const savedSpeed = result?.bgSpeed !== undefined ? Math.round(result.bgSpeed * 10) : 10;
+            updateSpeedUI(savedSpeed);
         });
     } else {
         activeButtons = [...defaultButtons];
         renderToolbar();
     }
 
-    // Attach click events to reset button
+    // Attach click events to reset background button
+    const resetBgBtn = document.getElementById('reset-bg-btn');
+    if (resetBgBtn) {
+        resetBgBtn.addEventListener('click', () => {
+            updateBrightnessUI(100);
+            updateBlurUI(100);
+            updateSpeedUI(10);
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({
+                    bgBrightness: 100,
+                    bgBlur: 100,
+                    bgSpeed: 1.0
+                });
+            }
+        });
+    }
+
+    // Attach click events to reset layout button
     const resetLayoutBtn = document.getElementById('reset-layout-btn');
     if (resetLayoutBtn) {
         resetLayoutBtn.addEventListener('click', () => {

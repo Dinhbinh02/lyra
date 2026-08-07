@@ -59,6 +59,25 @@
             <circle cx="18" cy="16" r="3"></circle>
           </svg>
         </button>
+        <button id="queue-toggle-btn" class="control-btn queue-btn hide" title="Toggle Queue">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+        </button>
+        <button id="playlist-toggle-btn" class="control-btn playlist-btn hide" title="Toggle Playlists">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15V6"></path>
+            <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"></path>
+            <line x1="12" y1="12" x2="3" y2="12"></line>
+            <line x1="16" y1="6" x2="3" y2="6"></line>
+            <line x1="12" y1="18" x2="3" y2="18"></line>
+          </svg>
+        </button>
         <button id="repeat-btn" class="control-btn repeat-btn hide" title="Repeat">
           <svg class="repeat" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="17 1 21 5 17 9"></polyline>
@@ -129,6 +148,24 @@
     <div id="lyrics-container" class="lyrics-container hide">
       <div id="lyrics-status" class="lyrics-status">Searching lyrics...</div>
       <div id="lyrics-list" class="lyrics-list"></div>
+    </div>
+
+    <div id="queue-container" class="queue-container hide">
+      <div class="panel-header">
+        <span class="panel-title">Queue</span>
+        <span id="queue-count" class="panel-subtitle">0 tracks</span>
+      </div>
+      <div id="queue-status" class="panel-status hide">Loading queue...</div>
+      <div id="queue-list" class="panel-list"></div>
+    </div>
+
+    <div id="playlist-container" class="playlist-container hide">
+      <div class="panel-header">
+        <span id="playlist-header-title" class="panel-title">Playlists</span>
+        <button id="playlist-back-btn" class="panel-back-btn hide">← Back</button>
+      </div>
+      <div id="playlist-status" class="panel-status hide">Loading playlists...</div>
+      <div id="playlist-list" class="panel-list"></div>
     </div>
 
     <div class="bottom-section">

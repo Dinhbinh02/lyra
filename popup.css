@@ -53,6 +53,7 @@ body {
     letter-spacing: 0.1em;
     color: rgba(255, 255, 255, 0.55);
     text-transform: uppercase;
+    margin-bottom: 2px;
 }
 
 .steps {
@@ -262,7 +263,7 @@ body {
     color: rgba(255, 255, 255, 0.55);
 }
 
-#reset-layout-btn {
+.reset-btn {
     background: transparent;
     border: none;
     color: #ff4d4d;
@@ -275,7 +276,7 @@ body {
     opacity: 0.85;
 }
 
-#reset-layout-btn:hover {
+.reset-btn:hover {
     background: rgba(255, 77, 77, 0.1);
     opacity: 1;
 }
@@ -285,7 +286,13 @@ body {
     grid-template-columns: repeat(7, 1fr);
     grid-gap: 6px;
     width: 100%;
-    margin-bottom: 8px;
+}
+
+.slots-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 6px;
+    font-style: italic;
 }
 
 .slot {
@@ -299,6 +306,7 @@ body {
     position: relative;
     user-select: none;
     cursor: default;
+    transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .slot.optional-slot {
@@ -423,4 +431,61 @@ body {
 .available-item-svg {
     vertical-align: middle;
     margin-right: 4px;
+}
+
+/* Background & Animation Settings */
+.setting-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.setting-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+}
+
+.setting-title {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
+
+.setting-value {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.setting-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    outline: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.setting-slider:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.setting-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+    transition: transform 0.1s ease;
+}
+
+.setting-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
 }
