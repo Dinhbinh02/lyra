@@ -152,13 +152,21 @@
     }
 
     async function addToPlaylist(playlistId, videoId) {
-        if (!playlistId || !videoId) return "error";
+        let vid = videoId;
+        if (!vid) {
+            const player = document.getElementById("movie_player");
+            vid = player?.getVideoData?.()?.video_id || null;
+        }
+        if (!playlistId || !vid) return "error";
+
+        const cleanPlaylistId = playlistId.replace(/^VL/, "");
+
         try {
             const data = await innertubeRequest("browse/edit_playlist", {
-                playlistId: playlistId.replace(/^VL/, ""),
+                playlistId: cleanPlaylistId,
                 actions: [{
                     action: "ACTION_ADD_VIDEO",
-                    addedVideoId: videoId,
+                    addedVideoId: vid,
                     dedupeOption: "DEDUPE_OPTION_CHECK"
                 }]
             });
@@ -196,6 +204,52 @@
         return false;
     }
 
+    function parseListItem(entry) {
+        const renderer = entry?.musicResponsiveListItemRenderer ?? entry?.musicTwoRowItemRenderer;
+        if (!renderer) return null;
+        const videoId = renderer?.playlistItemData?.videoId ?? renderer?.navigationEndpoint?.watchEndpoint?.videoId ?? null;
+        const runs = renderer?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? renderer?.title?.runs ?? [];
+        const title = runs.map(r => r.text).join("");
+        const artistRuns = renderer?.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? renderer?.subtitle?.runs ?? [];
+        const artist = artistRuns.map(r => r.text).join("");
+        const durRuns = renderer?.flexColumns?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? renderer?.lengthText?.runs ?? [];
+        const duration = durRuns.map(r => r.text).join("");
+        const thumbs = renderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ?? renderer?.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ?? [];
+        const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : (videoId ? `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg` : "");
+        return { videoId, title, artist, duration, thumb };
+    }
+
+    const SEARCH_FILTERS = {
+        songs: "EgWKAQIIAWoMEA4QChADEAQQCRAF",
+        videos: "EgWKAQIQAWoMEA4QChADEAQQCRAF"
+    };
+
+    async function searchFiltered(query, params) {
+        const data = await innertubeRequest("search", { query, params });
+        if (!data) return [];
+        const shelves = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ?? [];
+        const items = [];
+        for (const shelf of shelves) {
+            for (const entry of shelf?.musicShelfRenderer?.contents ?? []) {
+                const item = parseListItem(entry);
+                if (item?.title && item.videoId) items.push(item);
+            }
+        }
+        return items;
+    }
+
+    async function searchMusic(query) {
+        try {
+            const [songs, videos] = await Promise.all([
+                searchFiltered(query, SEARCH_FILTERS.songs),
+                searchFiltered(query, SEARCH_FILTERS.videos)
+            ]);
+            return [...(songs || []), ...(videos || [])];
+        } catch (err) {
+            return [];
+        }
+    }
+
     window.addEventListener("message", async (e) => {
         if (e.source !== window || e.data?.source !== FROM_CONTENT) return;
         const { command, payload, requestId } = e.data;
@@ -205,6 +259,9 @@
             window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
         } else if (command === "getQueueData") {
             const result = readQueueData();
+            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
+        } else if (command === "search") {
+            const result = await searchMusic(payload.query);
             window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
         } else if (command === "addToPlaylist") {
             const result = await addToPlaylist(payload.playlistId, payload.videoId);

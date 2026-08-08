@@ -229,12 +229,16 @@ let customRewindBtn = null;
 let customForwardBtn = null;
 let customSpeedBtn = null;
 let customSpeedText = null;
+let customRadioBtn = null;
+let customSearchBtn = null;
+let isSearchViewOpen = false;
+let openedFromSearch = false;
 let isMuted = false;
 let playbackSpeed = 1.0;
 let customControlsPriority = [null, 'repeat', 'prev', 'play', 'next', 'lyrics', null];
-let bgBrightnessVal = 100;
-let bgBlurVal = 100;
-let bgSpeedFactor = 1.0;
+let bgBrightnessVal = 120;
+let bgBlurVal = 90;
+let bgSpeedFactor = 1.5;
 let updateCoverSizeFn = null;
 
 function updatePipContent() {
@@ -396,11 +400,17 @@ function setValues() {
         volumeSliderPopup.value = currentSongInfo.volume;
     }
 
-    if (isLyricsViewOpen && currentSongInfo.title && currentSongInfo.artist) {
+    if (currentSongInfo.title && currentSongInfo.artist) {
         const key = `${currentSongInfo.title}-${currentSongInfo.artist}`;
-        if (currentLyricsSongKey !== key) {
+        const songChanged = lastKnownSongKey && lastKnownSongKey !== key;
+
+        if (isLyricsViewOpen && songChanged) {
             fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
         }
+
+
+
+        lastKnownSongKey = key;
     }
 
     if (isQueueViewOpen) {
@@ -481,35 +491,41 @@ async function updateQueueActiveHighlight() {
     }
 }
 
-function smoothScrollToCenter(container, element, duration = 380) {
+let isUserScrollingLyrics = false;
+let userScrollTimeout = null;
+let currentScrollAnimFrame = null;
+
+function scrollToCenter(container, element) {
     if (!container || !element) return;
+    
+    // Nếu người dùng đang tự cuộn xem lyrics, không can thiệp tự động cuộn
+    if (isUserScrollingLyrics) return;
+
+    // 1. Tính toán vị trí tâm lý tưởng
     const containerHeight = container.clientHeight || container.offsetHeight || 300;
     const elementHeight = element.clientHeight || element.offsetHeight || 40;
     const targetScrollTop = element.offsetTop - (containerHeight / 2) + (elementHeight / 2);
-    const startScrollTop = container.scrollTop;
-    const distance = targetScrollTop - startScrollTop;
-    if (Math.abs(distance) < 2) return;
 
-    let startTime = null;
-    function anim(currentTime) {
-        if (!startTime) startTime = currentTime;
-        const timeElapsed = currentTime - startTime;
-        const progress = Math.min(timeElapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3);
-        container.scrollTop = startScrollTop + (distance * ease);
-        if (progress < 1) {
-            if (pipWindow && !pipWindow.closed) {
-                pipWindow.requestAnimationFrame(anim);
-            } else {
-                requestAnimationFrame(anim);
-            }
-        }
-    }
-    if (pipWindow && !pipWindow.closed) {
-        pipWindow.requestAnimationFrame(anim);
-    } else {
-        requestAnimationFrame(anim);
-    }
+    // 2. Nhảy thẳng vào chính giữa màn hình ngay lập tức (không chạy animation rườm rà)
+    container.scrollTop = targetScrollTop;
+}
+
+// Đăng ký sự kiện cuộn của người dùng để tạm dừng tự động cuộn 3 giây (User Interruption Handling)
+function attachLyricsUserScrollListener(container) {
+    if (!container || container._userScrollAttached) return;
+    container._userScrollAttached = true;
+
+    const handleUserScroll = () => {
+        isUserScrollingLyrics = true;
+        if (userScrollTimeout) clearTimeout(userScrollTimeout);
+        // Tự động bật lại auto-scroll sau 3.5s nếu người dùng ngưng cuộn
+        userScrollTimeout = setTimeout(() => {
+            isUserScrollingLyrics = false;
+        }, 3500);
+    };
+
+    container.addEventListener('wheel', handleUserScroll, { passive: true });
+    container.addEventListener('touchstart', handleUserScroll, { passive: true });
 }
 
 function triggerFastRefresh() {
@@ -536,6 +552,7 @@ async function setup() {
     repeatHtml = repeatHtml == null ? pipWindow.document.querySelector('.repeat') : repeatHtml;
     repeatOnceHtml = repeatOnceHtml == null ? pipWindow.document.querySelector('.repeatOnce') : repeatOnceHtml;
     repeatBtn = repeatBtn == null ? pipWindow.document.querySelector('.repeat-btn') : repeatBtn;
+    shuffleHtml = shuffleHtml == null ? (pipWindow.document.getElementById('shuffle-btn') || pipWindow.document.querySelector('.shuffle')) : shuffleHtml;
     volumeSlider = volumeSlider == null ? pipWindow.document.getElementById('volume-slider') : volumeSlider;
     volumeSliderPopup = volumeSliderPopup == null ? pipWindow.document.getElementById('volume-slider-popup') : volumeSliderPopup;
 
@@ -547,6 +564,8 @@ async function setup() {
     customForwardBtn = customForwardBtn == null ? pipWindow.document.getElementById('forward-btn') : customForwardBtn;
     customSpeedBtn = customSpeedBtn == null ? pipWindow.document.getElementById('speed-btn') : customSpeedBtn;
     customSpeedText = customSpeedText == null ? pipWindow.document.getElementById('speed-text') : customSpeedText;
+    customRadioBtn = customRadioBtn == null ? pipWindow.document.getElementById('radio-btn') : customRadioBtn;
+    customSearchBtn = customSearchBtn == null ? pipWindow.document.getElementById('search-toggle-btn') : customSearchBtn;
 
     const playPauseBtn = pipWindow.document.getElementById('playPause-btn');
     const previousBtn = pipWindow.document.getElementById('prev-btn');
@@ -593,9 +612,37 @@ async function setup() {
 
     if (shuffleHtml) {
         shuffleHtml.addEventListener('click', () => {
-            const ytShuffleBtn = document.querySelector('.shuffle.style-scope.ytmusic-player-bar');
+            const bar = document.querySelector('ytmusic-player-bar');
+            let ytShuffleBtn = bar?.querySelector('.shuffle');
+            if (!ytShuffleBtn && bar) {
+                for (const btn of bar.querySelectorAll('button, tp-yt-paper-icon-button')) {
+                    const label = btn.getAttribute('aria-label') || btn.getAttribute('title') || '';
+                    if (/shuffle/i.test(label)) {
+                        ytShuffleBtn = btn;
+                        break;
+                    }
+                }
+            }
             if (ytShuffleBtn) {
-                ytShuffleBtn.click();
+                const targetBtn = ytShuffleBtn.querySelector('button') || ytShuffleBtn;
+                targetBtn.click();
+            }
+
+            const queueContainerEl = pipWindow?.document?.getElementById('queue-container');
+            const queueToggleBtnEl = pipWindow?.document?.getElementById('queue-toggle-btn');
+            const rootEl = pipWindow?.document?.getElementById('mini-player-root');
+
+            if (queueContainerEl) {
+                isQueueViewOpen = true;
+                closeAllPanelsExcept('queue');
+                queueContainerEl.classList.remove('hide');
+                if (rootEl) rootEl.classList.add('queue-mode');
+                if (queueToggleBtnEl) queueToggleBtnEl.classList.add('active');
+                adjustPipWindowHeight(true);
+                renderQueuePanel(true);
+                setTimeout(() => {
+                    renderQueuePanel(true);
+                }, 300);
             }
         });
     }
@@ -651,6 +698,12 @@ async function setup() {
         });
     }
 
+    if (customRadioBtn) {
+        customRadioBtn.addEventListener('click', () => {
+            startRadio();
+        });
+    }
+
 
     // Load custom control priority config from storage & listen for real-time changes
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -677,17 +730,17 @@ async function setup() {
 
         const clampBrightness = (v) => {
             const num = parseInt(v, 10);
-            return isNaN(num) ? 100 : Math.max(20, Math.min(150, num));
+            return isNaN(num) ? 120 : Math.max(20, Math.min(150, num));
         };
 
         const clampBlur = (v) => {
             const num = parseInt(v, 10);
-            return isNaN(num) ? 100 : Math.max(70, Math.min(150, num));
+            return isNaN(num) ? 90 : Math.max(70, Math.min(150, num));
         };
 
         const clampSpeed = (v) => {
             const num = parseFloat(v);
-            return isNaN(num) ? 1.0 : Math.max(0.0, Math.min(3.0, num));
+            return isNaN(num) ? 1.5 : Math.max(0.0, Math.min(3.0, num));
         };
 
         chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed'], (result) => {
@@ -774,6 +827,14 @@ async function setup() {
             if (miniPlayerRoot) miniPlayerRoot.classList.remove('playlist-mode');
             if (playlistToggleBtn) playlistToggleBtn.classList.remove('active');
         }
+        if (target !== 'search' && isSearchViewOpen) {
+            isSearchViewOpen = false;
+            const sContainer = pipWindow?.document?.getElementById('search-container');
+            const sToggleBtn = pipWindow?.document?.getElementById('search-toggle-btn');
+            if (sContainer) sContainer.classList.add('hide');
+            if (miniPlayerRoot) miniPlayerRoot.classList.remove('search-mode');
+            if (sToggleBtn) sToggleBtn.classList.remove('active');
+        }
     }
 
     if (queueToggleBtn && queueContainer) {
@@ -795,22 +856,223 @@ async function setup() {
         });
     }
 
+    const queueBackBtn = pipWindow.document.getElementById('queue-back-btn');
+    if (queueBackBtn && queueContainer) {
+        queueBackBtn.addEventListener('click', () => {
+            if (isQueueViewOpen) {
+                if (openedFromSearch) {
+                    openedFromSearch = false;
+                    toggleSearchPanel(true);
+                } else {
+                    isQueueViewOpen = false;
+                    queueContainer.classList.add('hide');
+                    if (miniPlayerRoot) miniPlayerRoot.classList.remove('queue-mode');
+                    if (queueToggleBtn) queueToggleBtn.classList.remove('active');
+                    adjustPipWindowHeight(false);
+                }
+            }
+        });
+    }
+
+    const playlistBackBtn = pipWindow.document.getElementById('playlist-back-btn');
+
     if (playlistToggleBtn && playlistContainer) {
         playlistToggleBtn.addEventListener('click', () => {
-            togglePlaylistPanel(false);
+            togglePlaylistPanel();
         });
     }
 
     if (addToPlaylistBtn && playlistContainer) {
         addToPlaylistBtn.addEventListener('click', () => {
-            togglePlaylistPanel(true);
+            togglePlaylistPanel(undefined, true);
         });
     }
 
-    function togglePlaylistPanel(isAddMode) {
+    if (playlistBackBtn && playlistContainer) {
+        playlistBackBtn.addEventListener('click', () => {
+            if (isPlaylistViewOpen) {
+                togglePlaylistPanel(false);
+            }
+        });
+    }
+
+    const searchContainer = pipWindow.document.getElementById('search-container');
+    const searchToggleBtn = pipWindow.document.getElementById('search-toggle-btn');
+    const searchBackBtn = pipWindow.document.getElementById('search-back-btn');
+    const searchInput = pipWindow.document.getElementById('search-input');
+    const searchList = pipWindow.document.getElementById('search-list');
+    const searchStatus = pipWindow.document.getElementById('search-status');
+    const searchSpinner = pipWindow.document.getElementById('search-spinner');
+
+    let searchDebounceTimer = null;
+
+    function toggleSearchPanel(forceOpen) {
+        if (!searchContainer) return;
+        const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !isSearchViewOpen;
+        isSearchViewOpen = shouldOpen;
+        if (isSearchViewOpen) {
+            closeAllPanelsExcept('search');
+            if (searchList) {
+                searchList.querySelectorAll('.panel-item.loading').forEach(el => el.classList.remove('loading'));
+            }
+            searchContainer.classList.remove('hide');
+            if (miniPlayerRoot) miniPlayerRoot.classList.add('search-mode');
+            if (searchToggleBtn) searchToggleBtn.classList.add('active');
+            adjustPipWindowHeight(true);
+            if (searchInput) searchInput.focus();
+        } else {
+            searchContainer.classList.add('hide');
+            if (miniPlayerRoot) miniPlayerRoot.classList.remove('search-mode');
+            if (searchToggleBtn) searchToggleBtn.classList.remove('active');
+            adjustPipWindowHeight(false);
+        }
+    }
+
+    if (searchToggleBtn && searchContainer) {
+        searchToggleBtn.addEventListener('click', () => {
+            toggleSearchPanel();
+        });
+    }
+
+    if (searchBackBtn && searchContainer) {
+        searchBackBtn.addEventListener('click', () => {
+            if (isSearchViewOpen) {
+                toggleSearchPanel(false);
+            }
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounceTimer);
+            const query = searchInput.value.trim();
+            if (!query) {
+                if (searchList) searchList.innerHTML = '';
+                if (searchStatus) searchStatus.classList.add('hide');
+                if (searchSpinner) searchSpinner.classList.add('hide');
+                return;
+            }
+
+            if (searchStatus) searchStatus.classList.add('hide');
+            if (searchSpinner) searchSpinner.classList.remove('hide');
+
+            searchDebounceTimer = setTimeout(async () => {
+                injectBridge();
+                const results = await askBridgeAsync("search", { query }, 8000);
+                if (searchSpinner) searchSpinner.classList.add('hide');
+                if (!searchList) return;
+                searchList.innerHTML = '';
+
+                if (!Array.isArray(results) || !results.length) {
+                    if (searchStatus) {
+                        searchStatus.textContent = 'No results found';
+                        searchStatus.classList.remove('hide');
+                    }
+                    return;
+                }
+
+                if (searchStatus) searchStatus.classList.add('hide');
+
+                const currentVid = getCurrentVideoId();
+                results.forEach((item) => {
+                    const isCurrentPlaying = (item.videoId && currentVid && currentVid === item.videoId);
+                    const div = pipWindow.document.createElement('div');
+                    div.className = `panel-item ${isCurrentPlaying ? 'selected' : ''}`;
+                    const thumbUrl = item.thumb || (item.videoId ? `https://i.ytimg.com/vi/${item.videoId}/mqdefault.jpg` : 'icons/icon48.png');
+                    div.innerHTML = `
+                        <img class="panel-item-thumb" src="${thumbUrl}" alt="thumb" onerror="this.onerror=null;this.src='icons/icon48.png';" />
+                        <div class="panel-item-info">
+                            <span class="panel-item-title">${item.title}</span>
+                            <span class="panel-item-artist">${isCurrentPlaying ? 'Now playing' : (item.artist || 'Artist')}</span>
+                        </div>
+                        ${item.duration ? `<span class="panel-item-duration">${item.duration}</span>` : ''}
+                        <button class="panel-item-action-btn" title="Start radio">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16.247 7.761a6 6 0 0 1 0 8.478"></path>
+                                <path d="M19.075 4.933a10 10 0 0 1 0 14.134"></path>
+                                <path d="M4.925 19.067a10 10 0 0 1 0-14.134"></path>
+                                <path d="M7.753 16.239a6 6 0 0 1 0-8.478"></path>
+                                <circle cx="12" cy="12" r="2"></circle>
+                            </svg>
+                        </button>
+                    `;
+
+                    const artistSpan = div.querySelector('.panel-item-artist');
+                    if (artistSpan) artistSpan._originalArtist = item.artist || 'Artist';
+
+                    const actionBtn = div.querySelector('.panel-item-action-btn');
+                    if (actionBtn) {
+                        actionBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            openedFromSearch = true;
+                            if (item.videoId) {
+                                const app = document.querySelector('ytmusic-app');
+                                if (app) {
+                                    const endpoint = {
+                                        watchEndpoint: {
+                                            videoId: item.videoId,
+                                            playlistId: 'RD' + item.videoId
+                                        }
+                                    };
+                                    app.dispatchEvent(new CustomEvent('yt-navigate', {
+                                        bubbles: true,
+                                        composed: true,
+                                        detail: { endpoint }
+                                    }));
+                                }
+                            }
+                            isQueueViewOpen = true;
+                            closeAllPanelsExcept('queue');
+                            const qContainer = pipWindow?.document?.getElementById('queue-container');
+                            const qToggleBtn = pipWindow?.document?.getElementById('queue-toggle-btn');
+                            const qStatus = pipWindow?.document?.getElementById('queue-status');
+                            const rootEl = pipWindow?.document?.querySelector('.mini-player');
+                            if (qContainer) qContainer.classList.remove('hide');
+                            if (rootEl) rootEl.classList.add('queue-mode');
+                            if (qToggleBtn) qToggleBtn.classList.add('active');
+                            if (qStatus) {
+                                qStatus.textContent = 'Loading queue...';
+                                qStatus.classList.remove('hide');
+                            }
+                            adjustPipWindowHeight(true);
+                            const retryDelays = [200, 600, 1200, 2000, 3200];
+                            retryDelays.forEach(ms => setTimeout(() => {
+                                if (isQueueViewOpen) renderQueuePanel();
+                            }, ms));
+                        });
+                    }
+
+                    div.addEventListener('click', async () => {
+                        if (searchList) {
+                            searchList.querySelectorAll('.panel-item').forEach(el => {
+                                el.classList.remove('selected');
+                                const aEl = el.querySelector('.panel-item-artist');
+                                if (aEl && aEl._originalArtist) {
+                                    aEl.textContent = aEl._originalArtist;
+                                }
+                            });
+                        }
+                        div.classList.add('selected');
+                        if (artistSpan) {
+                            artistSpan.textContent = 'Now playing';
+                        }
+                        injectBridge();
+                        await askBridgeAsync("playVideo", { videoId: item.videoId });
+                    });
+                    searchList.appendChild(div);
+                });
+            }, 350);
+        });
+    }
+
+    function togglePlaylistPanel(forceOpen, isAddMode) {
         if (!playlistContainer) return;
-        isPlaylistViewOpen = !isPlaylistViewOpen;
-        isAddToPlaylistMode = isAddMode;
+        // If forceOpen is a boolean, use it directly; otherwise toggle
+        const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !isPlaylistViewOpen;
+        if (typeof isAddMode !== 'undefined') {
+            isAddToPlaylistMode = isAddMode;
+        }
+        isPlaylistViewOpen = shouldOpen;
         if (isPlaylistViewOpen) {
             closeAllPanelsExcept('playlist');
             playlistContainer.classList.remove('hide');
@@ -825,6 +1087,9 @@ async function setup() {
             adjustPipWindowHeight(false);
         }
     }
+
+    // Expose close fn to outer scope so setValues() can call it on song change
+    closePlaylistPanelFn = () => togglePlaylistPanel(false);
 
     async function renderQueuePanel() {
         const queueList = pipWindow.document.getElementById('queue-list');
@@ -857,18 +1122,66 @@ async function setup() {
                     <span class="panel-item-artist">${item.artist}</span>
                 </div>
                 ${item.duration ? `<span class="panel-item-duration">${item.duration}</span>` : ''}
+                <button class="panel-item-action-btn" title="Start radio">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16.247 7.761a6 6 0 0 1 0 8.478"></path>
+                        <path d="M19.075 4.933a10 10 0 0 1 0 14.134"></path>
+                        <path d="M4.925 19.067a10 10 0 0 1 0-14.134"></path>
+                        <path d="M7.753 16.239a6 6 0 0 1 0-8.478"></path>
+                        <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                </button>
             `;
-            div.addEventListener('click', async () => {
+
+            const playTrack = async () => {
+                div.classList.add('loading');
                 injectBridge();
-                askBridgeAsync("playQueueIndex", { index: item.index });
+                await askBridgeAsync("playQueueIndex", { index: item.index });
                 const isNearEnd = item.index >= (queue.length - 5);
-                const delays = isNearEnd ? [200, 500, 1000, 1800, 2800] : [300, 700];
+                const delays = isNearEnd ? [300, 700, 1500, 2500] : [300, 800];
                 delays.forEach(ms => setTimeout(() => {
-                    if (isQueueViewOpen) updateQueueActiveHighlight();
+                    if (isQueueViewOpen) renderQueuePanel();
                 }, ms));
+            };
+
+            const actionBtn = div.querySelector('.panel-item-action-btn');
+            if (actionBtn) {
+                actionBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    div.classList.add('loading');
+                    if (item.videoId) {
+                        const app = document.querySelector('ytmusic-app');
+                        if (app) {
+                            const endpoint = {
+                                watchEndpoint: {
+                                    videoId: item.videoId,
+                                    playlistId: 'RD' + item.videoId
+                                }
+                            };
+                            app.dispatchEvent(new CustomEvent('yt-navigate', {
+                                bubbles: true,
+                                composed: true,
+                                detail: { endpoint }
+                            }));
+                        }
+                    }
+                    const delays = [400, 1000, 1800];
+                    delays.forEach(ms => setTimeout(() => {
+                        if (isQueueViewOpen) renderQueuePanel();
+                    }, ms));
+                });
+            }
+
+            div.addEventListener('click', () => {
+                playTrack();
             });
             queueList.appendChild(div);
         });
+
+        const selectedEl = queueList.querySelector('.panel-item.selected');
+        if (selectedEl) {
+            selectedEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
     }
 
     async function renderPlaylistsList() {
@@ -892,46 +1205,172 @@ async function setup() {
             }
             return;
         }
+        if (statusEl) statusEl.classList.add('hide');
 
         playlists.forEach((pl) => {
             const div = pipWindow.document.createElement('div');
             div.className = 'panel-item';
+            const cleanPlId = (pl.id || '').replace(/^VL/, '');
+            const isLikedPlaylist = Boolean(pl.id && (pl.id.includes('LM') || pl.id === 'VLLM' || pl.id === 'LM'));
+
+            const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
+            const isCurrentlyLiked = isLikedPlaylist && likeRenderer && likeRenderer.getAttribute('like-status') === 'LIKE';
+
+            const isNowPlaying = !isAddToPlaylistMode && activePlayingPlaylistId && (activePlayingPlaylistId === cleanPlId || activePlayingPlaylistId === pl.id);
+            const isPlayActive = isNowPlaying && activePlayingMode === 'play';
+            const isShuffleActive = isNowPlaying && activePlayingMode === 'shuffle';
+
+            if (isNowPlaying) {
+                div.classList.add('selected');
+            }
+
             div.innerHTML = `
-                <img class="panel-item-thumb" src="${pl.thumb || 'icons/icon48.png'}" alt="thumb" />
+                <div class="panel-item-thumb-wrapper">
+                    <img class="panel-item-thumb" src="${pl.thumb || 'icons/icon48.png'}" alt="thumb" />
+                    ${isAddToPlaylistMode ? `<div class="panel-item-plus-overlay"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>` : ''}
+                </div>
                 <div class="panel-item-info">
                     <span class="panel-item-title">${pl.title}</span>
-                    <span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>
+                    ${isAddToPlaylistMode
+                        ? (isCurrentlyLiked
+                            ? `<span class="panel-item-status-tag duplicate" style="margin-top: 2px;">Liked</span>`
+                            : `<span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>`)
+                        : (isNowPlaying
+                            ? `<span class="panel-item-status-tag added" style="margin-top: 2px;">Now playing</span>`
+                            : `<span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>`)
+                    }
                 </div>
+                ${!isAddToPlaylistMode ? `
+                    <div class="panel-item-actions">
+                        <button class="panel-action-btn shuffle-action-btn ${isShuffleActive ? 'active' : ''}" title="Shuffle playlist">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                            </svg>
+                        </button>
+                        <button class="panel-action-btn play-action-btn ${isPlayActive ? 'active' : ''}" title="Play playlist">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <polygon points="8,5 19,12 8,19"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                ` : ''}
             `;
-            div.addEventListener('click', async () => {
-                if (isAddToPlaylistMode) {
-                    const videoId = getCurrentVideoId();
-                    if (!videoId) {
-                        alert('Could not determine current playing video ID.');
-                        return;
+
+            if (isAddToPlaylistMode) {
+                div.addEventListener('click', async () => {
+                    const infoContainer = div.querySelector('.panel-item-info');
+                    const artistSpan = div.querySelector('.panel-item-artist');
+
+                    div.classList.add('loading');
+                    
+                    let spinner = div.querySelector('.panel-item-spinner');
+                    if (!spinner) {
+                        spinner = pipWindow.document.createElement('div');
+                        spinner.className = 'panel-item-spinner';
+                        div.appendChild(spinner);
                     }
-                    div.style.opacity = '0.5';
-                    const res = await addToPlaylist(pl.id, videoId);
-                    div.style.opacity = '1';
-                    if (res === 'added') {
-                        alert(`Added to "${pl.title}" successfully!`);
-                        togglePlaylistPanel(false);
-                    } else if (res === 'duplicate') {
-                        alert(`Song is already in "${pl.title}".`);
+
+                    let res = "error";
+
+                    if (isLikedPlaylist) {
+                        const ytLikeBtn = document.querySelector('ytmusic-like-button-renderer[id="like-button-renderer"] #button-shape-like button') || document.querySelector('#button-shape-like button');
+                        const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
+                        const currentStatus = likeRenderer ? likeRenderer.getAttribute('like-status') : 'INDIFFERENT';
+                        
+                        if (ytLikeBtn) {
+                            ytLikeBtn.click();
+                            triggerFastRefresh();
+                        }
+                        
+                        if (currentStatus === 'LIKE') {
+                            res = "unliked";
+                        } else {
+                            res = "liked";
+                        }
+                        await new Promise(r => setTimeout(r, 150));
                     } else {
-                        alert(`Failed to add to "${pl.title}".`);
+                        const videoId = getCurrentVideoId();
+                        if (videoId) {
+                            res = await addToPlaylist(pl.id, videoId);
+                        }
                     }
-                } else {
+
+                    div.classList.remove('loading');
+                    if (spinner) spinner.remove();
+
+                    let statusTag = div.querySelector('.panel-item-status-tag');
+                    if (!statusTag) {
+                        statusTag = pipWindow.document.createElement('span');
+                        statusTag.className = 'panel-item-status-tag';
+                        if (artistSpan) {
+                            artistSpan.style.display = 'none';
+                        }
+                        infoContainer.appendChild(statusTag);
+                    }
+
+                    if (res === 'liked') {
+                        statusTag.className = 'panel-item-status-tag added';
+                        statusTag.textContent = 'Liked';
+                    } else if (res === 'unliked') {
+                        statusTag.className = 'panel-item-status-tag duplicate';
+                        statusTag.textContent = 'Unliked';
+                    } else if (res === 'added') {
+                        statusTag.className = 'panel-item-status-tag added';
+                        statusTag.textContent = 'Added to playlist';
+                    } else if (res === 'duplicate') {
+                        statusTag.className = 'panel-item-status-tag duplicate';
+                        statusTag.textContent = 'Already in playlist';
+                    } else {
+                        statusTag.className = 'panel-item-status-tag error';
+                        statusTag.textContent = 'Cannot add';
+                    }
+                });
+            } else {
+                // Browse Playlists Mode: Handle Play and Shuffle clicks
+                const playBtn = div.querySelector('.play-action-btn');
+                const shuffleBtn = div.querySelector('.shuffle-action-btn');
+
+                const playPlaylist = (isShuffle = false) => {
+                    activePlayingPlaylistId = cleanPlId || pl.id;
+                    activePlayingMode = isShuffle ? 'shuffle' : 'play';
+
+                    // Update UI state immediately without closing container
+                    renderPlaylistsList();
+
                     const app = document.querySelector('ytmusic-app');
                     if (app) {
+                        const endpoint = {
+                            watchPlaylistEndpoint: {
+                                playlistId: cleanPlId,
+                                ...(isShuffle ? { params: 'wAEB' } : {})
+                            }
+                        };
                         app.dispatchEvent(new CustomEvent('yt-navigate', {
                             bubbles: true,
                             composed: true,
-                            detail: { endpoint: { watchPlaylistEndpoint: { playlistId: pl.id.replace(/^VL/, '') } } }
+                            detail: { endpoint }
                         }));
                     }
+                };
+
+                if (playBtn) {
+                    playBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        playPlaylist(false);
+                    });
                 }
-            });
+
+                if (shuffleBtn) {
+                    shuffleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        playPlaylist(true);
+                    });
+                }
+
+                div.addEventListener('click', () => {
+                    playPlaylist(false);
+                });
+            }
             playlistList.appendChild(div);
         });
     }
@@ -1004,14 +1443,11 @@ async function setup() {
     const lyricsContainer = pipWindow.document.getElementById('lyrics-container');
     if (lyricsToggleBtn && lyricsContainer && miniPlayerRoot) {
         lyricsToggleBtn.addEventListener('click', () => {
-            const currentH = miniPlayerRoot.offsetHeight || pipWindow.innerHeight;
-            if (!isLyricsViewOpen && currentH < 100) {
-                triggerShake(lyricsToggleBtn);
-                return;
-            }
-
             isLyricsViewOpen = !isLyricsViewOpen;
             wasLyricsViewOpenBeforeShrinking = false;
+            const cContainer = pipWindow?.document?.querySelector('.controls');
+            if (cContainer) cContainer._lastRenderedKeys = null;
+
             if (isLyricsViewOpen) {
                 closeAllPanelsExcept('lyrics');
                 lyricsContainer.classList.remove('hide');
@@ -1037,6 +1473,7 @@ async function setup() {
                     animFrameId = null;
                 }
             }
+            setTimeout(() => updatePipContent(), 50);
         });
     }
 
@@ -1168,25 +1605,28 @@ async function extractSongInfo() {
     currentSongInfo.highResUrl = getHighResCoverUrl(rawCoverUrl);
     currentSongInfo.coverUrl = currentSongInfo.highResUrl || rawCoverUrl;
 
-    const playPauseButton = document.getElementById('play-pause-button')
-    let state = playPauseButton ? playPauseButton.getAttribute('aria-label') : null;
-    if (state == null && playPauseButton) {
-        state = playPauseButton.getAttribute('title');
-    }
-    if (state) {
-        isPlaying = state.toLowerCase() === 'reproducir' || state.toLowerCase() === 'play';
-        isPlaying = !isPlaying;
+    const videoElementForState = document.querySelector('video');
+    if (videoElementForState) {
+        isPlaying = !videoElementForState.paused;
+    } else {
+        const playPauseButton = document.getElementById('play-pause-button');
+        if (playPauseButton) {
+            const iconSvg = playPauseButton.querySelector('path[d*="M6"]');
+            isPlaying = Boolean(iconSvg);
+        }
     }
 
     const repeatButton = document.querySelector('.repeat.style-scope.ytmusic-player-bar');
     if (repeatButton) {
-        let currentMode = repeatButton.getAttribute('aria-label') || repeatButton.getAttribute('title') || '';
-        if (currentMode.toLowerCase().includes('repeat off') || currentMode.toLowerCase().includes('desactivar')) {
+        const value = repeatButton.getAttribute('aria-aria-label') || repeatButton.getAttribute('value') || '';
+        // YouTube Music uses aria-pressed or repeat mode state class / icon
+        const iconPath = repeatButton.querySelector('path')?.getAttribute('d') || '';
+        if (repeatButton.classList.contains('active') || repeatButton.getAttribute('aria-pressed') === 'true') {
+            // Check if repeat 1 or repeat all
+            const hasOneIcon = repeatButton.querySelector('svg')?.innerHTML.includes('1') || iconPath.includes('1');
+            repeatMode = hasOneIcon ? 2 : 1;
+        } else {
             repeatMode = 0;
-        } else if (currentMode.toLowerCase().includes('repeat all') || currentMode.toLowerCase().includes('todo')) {
-            repeatMode = 1;
-        } else if (currentMode.toLowerCase().includes('repeat one') || currentMode.toLowerCase().includes('una vez')) {
-            repeatMode = 2;
         }
     }
 
@@ -1588,7 +2028,9 @@ document.addEventListener('request-pip-window', async (event) => {
                 // Dynamic responsive control buttons visibility logic
                 const controlsContainer = root.querySelector('.controls');
                 if (controlsContainer) {
-                    const containerWidth = controlsContainer.offsetWidth || w;
+                    const parentW = controlsContainer.parentElement ? controlsContainer.parentElement.clientWidth : 0;
+                    const rawW = controlsContainer.clientWidth || controlsContainer.offsetWidth || w;
+                    const containerWidth = parentW > 0 ? Math.min(rawW, parentW) : rawW;
 
                     // Estimated average width of a button is 32px + 4px gap.
                     const optionalBtnWidth = 32 + 4; // 36px (width + gap)
@@ -1639,7 +2081,9 @@ document.addEventListener('request-pip-window', async (event) => {
                             like: root.querySelector('#like-btn'),
                             dislike: root.querySelector('#dislike-btn'),
                             rewind: root.querySelector('#rewind-btn'),
-                            forward: root.querySelector('#forward-btn')
+                            forward: root.querySelector('#forward-btn'),
+                            radio: root.querySelector('#radio-btn'),
+                            search: root.querySelector('#search-toggle-btn')
                         };
 
                         // First, hide all buttons by default
@@ -1818,6 +2262,7 @@ function close() {
 
 let lyricsData = [];
 let currentLyricsSongKey = '';
+let lastKnownSongKey = ''; // Tracks song changes independently of lyrics state
 let currentActiveLineIndex = -1;
 let isLyricsViewOpen = false;
 let wasLyricsViewOpenBeforeShrinking = false;
@@ -1849,7 +2294,7 @@ window.addEventListener("message", (e) => {
     }
 });
 
-function askBridgeAsync(command, payload = {}, timeoutMs = 5000) {
+function askBridgeAsync(command, payload = {}, timeoutMs = 8000) {
     return new Promise((resolve) => {
         const requestId = ++bridgeRequestCounter;
         const timer = setTimeout(() => {
@@ -1966,48 +2411,48 @@ async function getQueueWithThumbs() {
     }).filter(entry => entry.title);
 }
 
+let cachedPlaylists = null;
+
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['cachedPlaylists'], (res) => {
+        if (res && Array.isArray(res.cachedPlaylists) && res.cachedPlaylists.length) {
+            cachedPlaylists = res.cachedPlaylists;
+        }
+    });
+}
+
 function readPlaylistsFromDOM() {
     const playlists = [];
     const seen = new Set();
 
-    const guideEntries = document.querySelectorAll('ytmusic-guide-entry-renderer, ytmusic-compact-station-renderer');
-    guideEntries.forEach(entry => {
-        const a = entry.querySelector('a[href*="list=VL"], a[href*="list=PL"], a[href*="playlist?list="]');
+    const selectors = [
+        'ytmusic-guide-entry-renderer',
+        'ytmusic-compact-station-renderer',
+        'ytmusic-two-row-item-renderer',
+        'tp-yt-paper-item',
+        'ytmusic-navigation-button-renderer'
+    ];
+    
+    const elements = document.querySelectorAll(selectors.join(', '));
+    elements.forEach(entry => {
+        const a = entry.querySelector('a[href*="list="]');
         if (!a) return;
         const href = a.getAttribute('href') || '';
-        const match = href.match(/list=(VL[A-Za-z0-9_-]+|PL[A-Za-z0-9_-]+)/);
+        const match = href.match(/list=([A-Za-z0-9_-]+)/);
         if (!match) return;
-        let browseId = match[1];
+        let rawId = match[1];
+        if (rawId.startsWith('RD') || rawId.startsWith('UL')) return;
+        let browseId = rawId;
         if (browseId.startsWith('PL')) browseId = 'VL' + browseId;
         if (seen.has(browseId)) return;
         seen.add(browseId);
 
-        const title = entry.querySelector('yt-formatted-string, .title, .text')?.textContent?.trim() || 'Playlist';
+        let title = entry.querySelector('yt-formatted-string, .title, .text, a')?.textContent?.trim() || '';
+        if (!title || title === 'Playlist') {
+            title = a.getAttribute('title') || a.textContent?.trim() || 'Playlist';
+        }
+        const subtitle = entry.querySelector('.subtitle, .byline')?.textContent?.trim() || 'Playlist';
         const img = entry.querySelector('img')?.src || '';
-
-        playlists.push({
-            id: browseId,
-            title,
-            subtitle: 'Playlist',
-            thumb: (img.startsWith('data:') ? '' : img)
-        });
-    });
-
-    const tiles = document.querySelectorAll('ytmusic-two-row-item-renderer');
-    tiles.forEach(tile => {
-        const a = tile.querySelector('a[href*="list=VL"], a[href*="list=PL"], a[href*="playlist?list="]');
-        if (!a) return;
-        const href = a.getAttribute('href') || '';
-        const match = href.match(/list=(VL[A-Za-z0-9_-]+|PL[A-Za-z0-9_-]+)/);
-        if (!match) return;
-        let browseId = match[1];
-        if (browseId.startsWith('PL')) browseId = 'VL' + browseId;
-        if (seen.has(browseId)) return;
-        seen.add(browseId);
-
-        const title = tile.querySelector('.title')?.textContent?.trim() || 'Playlist';
-        const subtitle = tile.querySelector('.subtitle')?.textContent?.trim() || 'Playlist';
-        const img = tile.querySelector('img')?.src || '';
 
         playlists.push({
             id: browseId,
@@ -2017,35 +2462,81 @@ function readPlaylistsFromDOM() {
         });
     });
 
+    if (playlists.length === 0) {
+        const links = document.querySelectorAll('a[href*="list=VL"], a[href*="list=PL"]');
+        links.forEach(a => {
+            const href = a.getAttribute('href') || '';
+            const match = href.match(/list=(VL[A-Za-z0-9_-]+|PL[A-Za-z0-9_-]+)/);
+            if (!match) return;
+            let browseId = match[1];
+            if (browseId.startsWith('PL')) browseId = 'VL' + browseId;
+            if (seen.has(browseId)) return;
+            seen.add(browseId);
+
+            const parent = a.closest('ytmusic-two-row-item-renderer, tp-yt-paper-item, div') || a;
+            const title = parent.querySelector('.title, yt-formatted-string')?.textContent?.trim() || a.textContent?.trim() || 'Playlist';
+            const img = parent.querySelector('img')?.src || '';
+
+            playlists.push({
+                id: browseId,
+                title,
+                subtitle: 'Playlist',
+                thumb: (img.startsWith('data:') ? '' : img)
+            });
+        });
+    }
+
     return playlists;
 }
 
 async function fetchPlaylists() {
     injectBridge();
-    let playlists = await askBridgeAsync("getPlaylists", {}, 5000);
+    
+    let playlists = await askBridgeAsync("getPlaylists", {}, 4000);
+    
     if (!Array.isArray(playlists) || !playlists.length) {
         playlists = readPlaylistsFromDOM();
     }
-    return playlists || [];
+    
+    if (!Array.isArray(playlists) || !playlists.length) {
+        await new Promise(r => setTimeout(r, 600));
+        playlists = await askBridgeAsync("getPlaylists", {}, 4000);
+        if (!Array.isArray(playlists) || !playlists.length) {
+            playlists = readPlaylistsFromDOM();
+        }
+    }
+    
+    if (Array.isArray(playlists) && playlists.length) {
+        cachedPlaylists = playlists;
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.set({ cachedPlaylists: playlists });
+        }
+        return playlists;
+    }
+    
+    return cachedPlaylists || [];
 }
 
 async function addToPlaylist(playlistId, videoId) {
     if (!playlistId || !videoId) return "error";
     injectBridge();
-    const res = await askBridgeAsync("addToPlaylist", { playlistId, videoId }, 5000);
+    const res = await askBridgeAsync("addToPlaylist", { playlistId, videoId }, 8000);
     return res || "error";
 }
 
 function getCurrentVideoId() {
-    const videoElement = document.querySelector('video');
-    if (window.ytmusic && window.ytmusic.player && window.ytmusic.player.getVideoData) {
-        return window.ytmusic.player.getVideoData()?.video_id || null;
+    const moviePlayer = document.getElementById('movie_player');
+    if (moviePlayer && typeof moviePlayer.getVideoData === 'function') {
+        const data = moviePlayer.getVideoData();
+        if (data && data.video_id) return data.video_id;
     }
     const watchLink = document.querySelector('a.ytp-title-link, a[href*="watch?v="]');
     if (watchLink) {
         const m = watchLink.href.match(/v=([^&]+)/);
         if (m) return m[1];
     }
+    const urlMatch = window.location.href.match(/v=([^&]+)/);
+    if (urlMatch) return urlMatch[1];
     return null;
 }
 
@@ -2053,6 +2544,10 @@ function getCurrentVideoId() {
 let isQueueViewOpen = false;
 let isPlaylistViewOpen = false;
 let isAddToPlaylistMode = false;
+let activePlayingPlaylistId = null;
+let activePlayingMode = null; // 'play' or 'shuffle'
+// Callback ref set by setup() so outer scope can close playlist panel
+let closePlaylistPanelFn = null;
 function adjustPipWindowHeight(needExpand) {
     if (!needExpand || !pipWindow || pipWindow.closed) return;
     const minRequiredInnerHeight = 300;
@@ -2337,11 +2832,11 @@ function getLyricsFromDom() {
                 // Use textContent to preserve linebreaks from split-lines attribute
                 const rawText = el.textContent || el.innerText || '';
                 const text = rawText.trim();
-                if (text.length > 0 && !text.toLowerCase().includes('lyrics not available') && !text.toLowerCase().includes('không có lời')) {
+                if (text.length > 5) {
                     // Split lines, trim each, filter out source footer lines
                     const lines = text.split('\n')
                         .map(l => l.trim())
-                        .filter(l => l.length > 0 && !l.toLowerCase().startsWith('source:') && !l.toLowerCase().startsWith('lyricist'));
+                        .filter(l => l.length > 0 && !/^source:|^lyricist:/i.test(l));
                     if (lines.length > 0) {
                         return lines.join('\n');
                     }
@@ -2541,7 +3036,7 @@ async function fetchSyncedLyrics(title, artist) {
     let domLyrics = getLyricsFromDom();
     if (!domLyrics) {
         const paperTabs = Array.from(document.querySelectorAll('tp-yt-paper-tab.tab-header, tp-yt-paper-tab'));
-        const lyricsTabBtn = paperTabs.find(tab => tab.textContent && tab.textContent.trim().toLowerCase().includes('lyrics'));
+        const lyricsTabBtn = paperTabs.find(tab => tab.pageType === "MUSIC_PAGE_TYPE_TRACK_LYRICS") || paperTabs[1];
         if (lyricsTabBtn) {
             lyricsTabBtn.click();
             domLyrics = await new Promise(resolve => {
@@ -2613,6 +3108,13 @@ function processLyricsData(data, triggerSave = false, songKey = '') {
 
 const romanizeCache = new Map();
 
+function detectLangCode(text) {
+    if (/[\u3040-\u30ff]/.test(text)) return 'ja'; // Japanese Hiragana/Katakana
+    if (/[\uac00-\ud7af]/.test(text)) return 'ko'; // Korean Hangul
+    if (/[\u3400-\u4dbf\u4e00-\u9fff]/.test(text)) return 'zh-CN'; // Chinese Hanzi
+    return 'ja';
+}
+
 async function fetchRomanizedText(text) {
     if (!text || !/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\u0400-\u04ff]/.test(text)) {
         return null;
@@ -2621,17 +3123,40 @@ async function fetchRomanizedText(text) {
         return romanizeCache.get(text);
     }
     try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&dt=rm&q=${encodeURIComponent(text)}`;
+        const lang = detectLangCode(text);
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm&q=${encodeURIComponent(text)}`;
         const res = await fetch(url);
         if (res.ok) {
             const data = await res.json();
+            let rawRomanized = '';
+            
+            // 1. Try finding transliteration string in data[0] (item[3] or item[2])
             if (Array.isArray(data) && Array.isArray(data[0])) {
-                const romItem = data[0].find(item => Array.isArray(item) && item[3]);
-                if (romItem && romItem[3]) {
-                    // Remove non-printable control characters, math symbols like ≡ (U+2261), and clean up
-                    const romanized = romItem[3].replace(/[\u2200-\u2BFF\u2000-\u206F\u0000-\u001F]/g, '').replace(/\s+/g, ' ').trim();
-                    romanizeCache.set(text, romanized);
-                    return romanized;
+                const translitChunks = data[0]
+                    .map(item => (Array.isArray(item) && item[3]) ? item[3] : ((Array.isArray(item) && item[2]) ? item[2] : ''))
+                    .filter(Boolean);
+                if (translitChunks.length > 0) {
+                    rawRomanized = translitChunks.join(' ');
+                }
+            }
+
+            // 2. Fallback: Check data[1] or other sub-arrays if rawRomanized is empty
+            if (!rawRomanized && Array.isArray(data[1])) {
+                const altChunks = data[1].map(item => Array.isArray(item) ? item[0] : '').filter(Boolean);
+                if (altChunks.length > 0) rawRomanized = altChunks.join(' ');
+            }
+
+            if (rawRomanized) {
+                // Strip away original CJK characters (Hangul, Kanji, Kana) if any leak into the transliteration string
+                let cleanRomanized = rawRomanized
+                    .replace(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/g, '')
+                    .replace(/[\u2200-\u2BFF\u2000-\u206F\u0000-\u001F]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                if (cleanRomanized) {
+                    romanizeCache.set(text, cleanRomanized);
+                    return cleanRomanized;
                 }
             }
         }
@@ -2808,7 +3333,8 @@ function updateActiveLyricLine(currentTime, deltaTime) {
                 }
                 const lyricsContainer = pipWindow.document.getElementById('lyrics-container');
                 if (lyricsContainer) {
-                    smoothScrollToCenter(lyricsContainer, wrap, 380);
+                    attachLyricsUserScrollListener(lyricsContainer);
+                    scrollToCenter(lyricsContainer, wrap);
                 }
             } else if (index < activeIndex) {
                 if (vocals) {
@@ -2929,4 +3455,79 @@ document.addEventListener('pause', (e) => {
         setTimeout(handleYouTubeAutoPauseBypass, 150);
     }
 }, true);
+
+async function withHiddenMenu(worker) {
+    const bar = document.querySelector('ytmusic-player-bar');
+    const menuButton = bar?.querySelector('ytmusic-menu-renderer #button-shape button') || bar?.querySelector('ytmusic-menu-renderer button');
+    if (!menuButton) return false;
+    const veil = document.createElement('style');
+    veil.textContent = 'ytmusic-popup-container { opacity: 0 !important; pointer-events: none !important; }';
+    document.head.append(veil);
+    try {
+        menuButton.click();
+        for (let attempt = 0; attempt < 20; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const result = worker();
+            if (result != null) return result;
+        }
+        return false;
+    } finally {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        document.body.click();
+        setTimeout(() => veil.remove(), 250);
+    }
+}
+
+function startRadio() {
+    const triggerOpenQueue = () => {
+        isQueueViewOpen = true;
+        closeAllPanelsExcept('queue');
+        const qContainer = pipWindow?.document?.getElementById('queue-container');
+        const qToggleBtn = pipWindow?.document?.getElementById('queue-toggle-btn');
+        const qStatus = pipWindow?.document?.getElementById('queue-status');
+        const rootEl = pipWindow?.document?.querySelector('.mini-player');
+        if (qContainer) qContainer.classList.remove('hide');
+        if (rootEl) rootEl.classList.add('queue-mode');
+        if (qToggleBtn) qToggleBtn.classList.add('active');
+        if (qStatus) {
+            qStatus.textContent = 'Loading queue...';
+            qStatus.classList.remove('hide');
+        }
+        adjustPipWindowHeight(true);
+        const retryDelays = [200, 600, 1200, 2000, 3200];
+        retryDelays.forEach(ms => setTimeout(() => {
+            if (isQueueViewOpen) renderQueuePanel();
+        }, ms));
+    };
+
+    return withHiddenMenu(() => {
+        const link = document.querySelector('ytmusic-menu-navigation-item-renderer a[href*="list=RD"]');
+        if (!link) return null;
+        const id = getCurrentVideoId();
+        if (id && !link.getAttribute('href')?.includes(id)) return null;
+        link.click();
+        return true;
+    }).then((ok) => {
+        if (!ok) {
+            const vid = getCurrentVideoId();
+            if (vid) {
+                const app = document.querySelector('ytmusic-app');
+                if (app) {
+                    const endpoint = {
+                        watchEndpoint: {
+                            videoId: vid,
+                            playlistId: 'RD' + vid
+                        }
+                    };
+                    app.dispatchEvent(new CustomEvent('yt-navigate', {
+                        bubbles: true,
+                        composed: true,
+                        detail: { endpoint }
+                    }));
+                }
+            }
+        }
+        triggerOpenQueue();
+    });
+}
 

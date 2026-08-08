@@ -93,6 +93,17 @@ document.addEventListener('DOMContentLoaded', () => {
         next: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="5 4 15 12 5 20 5 4"></polygon>
             <line x1="19" y1="5" x2="19" y2="19"></line>
+        </svg>`,
+        radio: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16.247 7.761a6 6 0 0 1 0 8.478"></path>
+            <path d="M19.075 4.933a10 10 0 0 1 0 14.134"></path>
+            <path d="M4.925 19.067a10 10 0 0 1 0-14.134"></path>
+            <path d="M7.753 16.239a6 6 0 0 1 0-8.478"></path>
+            <circle cx="12" cy="12" r="2"></circle>
+        </svg>`,
+        search: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>`
     };
 
@@ -109,17 +120,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const hardcodedPlaceholders = [6, 4, 1, 2, 3, 5, 7];
 
     function renderToolbar() {
-        // Clear all slots first
         optionalSlots.forEach((slot, index) => {
             const isMiddle = index === 2 || index === 3 || index === 4;
             slot.className = isMiddle ? 'slot optional-slot middle-slot' : 'slot optional-slot';
             slot.innerHTML = `<span class="placeholder-num">${hardcodedPlaceholders[index]}</span>`;
             slot.onclick = null;
+            slot.style.opacity = '';
         });
 
-        // Reset disabled states on available items
         availableItems.forEach(item => {
             item.classList.remove('disabled');
+            item.style.opacity = '';
         });
 
         // Fill slots based on activeButtons list
@@ -167,11 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('dragging-active');
         });
         item.addEventListener('dragend', () => {
-            item.style.opacity = '1';
+            item.style.opacity = '';
             if (originalButtonsState) {
                 activeButtons = [...originalButtonsState];
-                renderToolbar();
             }
+            renderToolbar();
             draggedBtnId = null;
             draggedFromSlotIdx = null;
             originalButtonsState = null;
@@ -180,13 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Make slots drop targets and draggable when filled
     optionalSlots.forEach((slot, index) => {
         slot.setAttribute('draggable', 'true');
         
         slot.addEventListener('dragstart', (e) => {
             if (!activeButtons[index]) {
-                // Empty slots cannot be dragged
                 e.preventDefault();
                 return;
             }
@@ -199,12 +208,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         slot.addEventListener('dragend', () => {
-            slot.style.opacity = '1';
-            // If ended without drop on a valid slot target, revert
+            slot.style.opacity = '';
             if (originalButtonsState) {
                 activeButtons = [...originalButtonsState];
-                renderToolbar();
             }
+            renderToolbar();
             draggedBtnId = null;
             draggedFromSlotIdx = null;
             originalButtonsState = null;
@@ -214,45 +222,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         slot.addEventListener('dragover', (e) => {
             e.preventDefault();
-            slot.classList.add('drag-over');
 
             if (!draggedBtnId) return;
 
-            // Calculate threshold (50% horizontal center of slot)
-            const rect = slot.getBoundingClientRect();
-            const mouseX = e.clientX;
-            const threshold = rect.left + rect.width / 2;
+            if (index !== lastHoveredSlotIdx) {
+                lastHoveredSlotIdx = index;
+                
+                activeButtons = [...originalButtonsState];
 
-            if (draggedFromSlotIdx !== null) {
-                // Dragging between slots
-                if (index !== lastHoveredSlotIdx) {
-                    lastHoveredSlotIdx = index;
-                    
-                    // Live swap activeButtons positions
-                    const currentIdx = activeButtons.indexOf(draggedBtnId);
-                    if (currentIdx !== -1 && currentIdx !== index) {
-                        const temp = activeButtons[index];
-                        activeButtons[index] = draggedBtnId;
-                        activeButtons[currentIdx] = temp;
-                        renderToolbar();
-                        
-                        // Keep opacity on currently dragged item
-                        const newSlot = optionalSlots[activeButtons.indexOf(draggedBtnId)];
-                        if (newSlot) newSlot.style.opacity = '0.4';
-                    }
-                }
-            } else {
-                // Dragging from available list preview
-                if (index !== lastHoveredSlotIdx) {
-                    lastHoveredSlotIdx = index;
-                    activeButtons = [...originalButtonsState];
+                if (draggedFromSlotIdx !== null) {
+                    const temp = activeButtons[index];
                     activeButtons[index] = draggedBtnId;
-                    renderToolbar();
-                    
-                    const targetSlot = optionalSlots[index];
-                    if (targetSlot) targetSlot.style.opacity = '0.4';
+                    activeButtons[draggedFromSlotIdx] = temp;
+                } else {
+                    activeButtons[index] = draggedBtnId;
                 }
+
+                renderToolbar();
+                
+                const targetSlot = optionalSlots[index];
+                if (targetSlot) targetSlot.style.opacity = '0.4';
             }
+
+            optionalSlots[index].classList.add('drag-over');
         });
 
         slot.addEventListener('dragleave', (e) => {
@@ -279,10 +271,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addButton(btnId) {
         if (activeButtons.includes(btnId)) return;
-        // Find the first empty slot to put this button
-        const emptyIndex = activeButtons.findIndex(b => b === null);
-        if (emptyIndex !== -1) {
-            activeButtons[emptyIndex] = btnId;
+        let bestIndex = -1;
+        let minPriorityNum = Infinity;
+        activeButtons.forEach((b, idx) => {
+            if (b === null) {
+                const priorityNum = hardcodedPlaceholders[idx];
+                if (priorityNum < minPriorityNum) {
+                    minPriorityNum = priorityNum;
+                    bestIndex = idx;
+                }
+            }
+        });
+        if (bestIndex !== -1) {
+            activeButtons[bestIndex] = btnId;
             saveConfig();
             renderToolbar();
         }
@@ -355,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (brightnessSlider) {
         brightnessSlider.addEventListener('input', (e) => {
             let val = parseInt(e.target.value, 10);
-            if (isNaN(val)) val = 100;
+            if (isNaN(val)) val = 120;
             val = Math.max(20, Math.min(150, val));
             updateBrightnessUI(val);
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -367,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (blurSlider) {
         blurSlider.addEventListener('input', (e) => {
             let val = parseInt(e.target.value, 10);
-            if (isNaN(val)) val = 100;
+            if (isNaN(val)) val = 90;
             val = Math.max(70, Math.min(150, val));
             updateBlurUI(val);
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -379,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (speedSlider) {
         speedSlider.addEventListener('input', (e) => {
             let val = parseInt(e.target.value, 10);
-            if (isNaN(val)) val = 10;
+            if (isNaN(val)) val = 15;
             val = Math.max(0, Math.min(30, val));
             updateSpeedUI(val);
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -401,13 +402,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderToolbar();
 
-            const savedBrightness = result?.bgBrightness !== undefined ? result.bgBrightness : 100;
+            const savedBrightness = result?.bgBrightness !== undefined ? result.bgBrightness : 120;
             updateBrightnessUI(savedBrightness);
 
-            const savedBlur = result?.bgBlur !== undefined ? result.bgBlur : 100;
+            const savedBlur = result?.bgBlur !== undefined ? result.bgBlur : 90;
             updateBlurUI(savedBlur);
 
-            const savedSpeed = result?.bgSpeed !== undefined ? Math.round(result.bgSpeed * 10) : 10;
+            const savedSpeed = result?.bgSpeed !== undefined ? Math.round(result.bgSpeed * 10) : 15;
             updateSpeedUI(savedSpeed);
         });
     } else {
@@ -419,14 +420,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBgBtn = document.getElementById('reset-bg-btn');
     if (resetBgBtn) {
         resetBgBtn.addEventListener('click', () => {
-            updateBrightnessUI(100);
-            updateBlurUI(100);
-            updateSpeedUI(10);
+            updateBrightnessUI(120);
+            updateBlurUI(90);
+            updateSpeedUI(15);
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.set({
-                    bgBrightness: 100,
-                    bgBlur: 100,
-                    bgSpeed: 1.0
+                    bgBrightness: 120,
+                    bgBlur: 90,
+                    bgSpeed: 1.5
                 });
             }
         });

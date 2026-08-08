@@ -1,4 +1,0 @@
-# Temporary scratch testing folder
-# Anything inside scratch/ (except .gitkeep) is ignored by git
-scratch/*
-!scratch/.gitkeep

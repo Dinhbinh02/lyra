@@ -1,8 +1,11 @@
 .DS_Store
 *.log
+.vscode/
 node_modules/
+
 dist/
 lyra.zip
+
+scripts/
 store_assets/
-scratch/*
-!scratch/.gitkeep
+promo_screenshots/
