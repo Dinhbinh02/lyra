@@ -221,7 +221,6 @@ let volumeSlider = null;
 let volumeSliderPopup = null;
 let isDraggingProgress = false;
 
-// Custom dynamic controls variables
 let customMuteBtn = null;
 let customLikeBtn = null;
 let customDislikeBtn = null;
@@ -234,8 +233,8 @@ let customSearchBtn = null;
 let isSearchViewOpen = false;
 let openedFromSearch = false;
 let isMuted = false;
-let playbackSpeed = 1.0;
-let customControlsPriority = [null, 'repeat', 'prev', 'play', 'next', 'lyrics', null];
+const defaultButtons = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
+let customControlsPriority = [...defaultButtons];
 let bgBrightnessVal = 120;
 let bgBlurVal = 90;
 let bgSpeedFactor = 1.5;
@@ -356,7 +355,6 @@ function setValues() {
         if (repeatOnceHtml) repeatOnceHtml.classList.remove('hide');
     }
 
-    // Dynamic states for Mute, Like, Dislike, Speed
     if (customMuteBtn) {
         const unmutedSvg = customMuteBtn.querySelector('.unmuted');
         const mutedSvg = customMuteBtn.querySelector('.muted');
@@ -391,7 +389,6 @@ function setValues() {
         }
     }
 
-
     if (volumeSlider) {
         volumeSlider.value = currentSongInfo.volume;
     }
@@ -408,13 +405,37 @@ function setValues() {
             fetchSyncedLyrics(currentSongInfo.title, currentSongInfo.artist);
         }
 
-
-
         lastKnownSongKey = key;
     }
 
     if (isQueueViewOpen) {
         updateQueueActiveHighlight();
+    }
+    syncQueueObserverState();
+}
+
+let queueMutationObserver = null;
+
+function syncQueueObserverState() {
+    if (isQueueViewOpen && pipWindow && !pipWindow.closed) {
+        if (!queueMutationObserver) {
+            const queueScope = document.querySelector("ytmusic-player-queue #items") || document.querySelector("ytmusic-player-queue");
+            if (queueScope) {
+                let debounceTimer = null;
+                queueMutationObserver = new MutationObserver(() => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        if (isQueueViewOpen) renderQueuePanel();
+                    }, 250);
+                });
+                queueMutationObserver.observe(queueScope, { childList: true });
+            }
+        }
+    } else {
+        if (queueMutationObserver) {
+            queueMutationObserver.disconnect();
+            queueMutationObserver = null;
+        }
     }
 }
 
@@ -426,7 +447,20 @@ async function updateQueueActiveHighlight() {
     const queue = await getQueueWithThumbs();
     const items = queueList.querySelectorAll('.panel-item');
 
+    let mismatch = false;
     if (queue.length !== items.length) {
+        mismatch = true;
+    } else {
+        for (let i = 0; i < queue.length; i++) {
+            const renderedTitle = items[i]?.querySelector('.panel-item-title')?.textContent?.trim();
+            if (queue[i]?.title && renderedTitle && queue[i].title.trim() !== renderedTitle) {
+                mismatch = true;
+                break;
+            }
+        }
+    }
+
+    if (mismatch) {
         renderQueuePanel();
         return;
     }
@@ -458,37 +492,16 @@ async function updateQueueActiveHighlight() {
     }
 
     items.forEach((itemEl, idx) => {
+        const artistEl = itemEl.querySelector('.panel-item-artist');
+        const origArtist = queue[idx]?.artist || 'Artist';
         if (idx === activeIndex) {
             itemEl.classList.add('selected');
+            if (artistEl) artistEl.textContent = 'Now playing';
         } else {
             itemEl.classList.remove('selected');
+            if (artistEl) artistEl.textContent = origArtist;
         }
     });
-
-    if (activeIndex >= 0 && activeIndex >= items.length - 5) {
-        if (!window.__ytmAutomixPollTimer) {
-            const pollAutomix = async () => {
-                if (!pipWindow || pipWindow.closed || !isQueueViewOpen) {
-                    window.__ytmAutomixPollTimer = null;
-                    return;
-                }
-                const freshQueue = await getQueueWithThumbs();
-                const curItems = pipWindow.document.getElementById('queue-list')?.querySelectorAll('.panel-item');
-                if (curItems && freshQueue.length !== curItems.length) {
-                    renderQueuePanel();
-                    window.__ytmAutomixPollTimer = null;
-                } else {
-                    window.__ytmAutomixPollTimer = setTimeout(pollAutomix, 1000);
-                }
-            };
-            window.__ytmAutomixPollTimer = setTimeout(pollAutomix, 500);
-        }
-    } else {
-        if (window.__ytmAutomixPollTimer) {
-            clearTimeout(window.__ytmAutomixPollTimer);
-            window.__ytmAutomixPollTimer = null;
-        }
-    }
 }
 
 let isUserScrollingLyrics = false;
@@ -497,20 +510,16 @@ let currentScrollAnimFrame = null;
 
 function scrollToCenter(container, element) {
     if (!container || !element) return;
-    
-    // Nếu người dùng đang tự cuộn xem lyrics, không can thiệp tự động cuộn
+
     if (isUserScrollingLyrics) return;
 
-    // 1. Tính toán vị trí tâm lý tưởng
     const containerHeight = container.clientHeight || container.offsetHeight || 300;
     const elementHeight = element.clientHeight || element.offsetHeight || 40;
     const targetScrollTop = element.offsetTop - (containerHeight / 2) + (elementHeight / 2);
 
-    // 2. Nhảy thẳng vào chính giữa màn hình ngay lập tức (không chạy animation rườm rà)
     container.scrollTop = targetScrollTop;
 }
 
-// Đăng ký sự kiện cuộn của người dùng để tạm dừng tự động cuộn 3 giây (User Interruption Handling)
 function attachLyricsUserScrollListener(container) {
     if (!container || container._userScrollAttached) return;
     container._userScrollAttached = true;
@@ -518,7 +527,7 @@ function attachLyricsUserScrollListener(container) {
     const handleUserScroll = () => {
         isUserScrollingLyrics = true;
         if (userScrollTimeout) clearTimeout(userScrollTimeout);
-        // Tự động bật lại auto-scroll sau 3.5s nếu người dùng ngưng cuộn
+        
         userScrollTimeout = setTimeout(() => {
             isUserScrollingLyrics = false;
         }, 3500);
@@ -556,7 +565,6 @@ async function setup() {
     volumeSlider = volumeSlider == null ? pipWindow.document.getElementById('volume-slider') : volumeSlider;
     volumeSliderPopup = volumeSliderPopup == null ? pipWindow.document.getElementById('volume-slider-popup') : volumeSliderPopup;
 
-    // Bind new custom control buttons DOM
     customMuteBtn = customMuteBtn == null ? pipWindow.document.getElementById('mute-btn') : customMuteBtn;
     customLikeBtn = customLikeBtn == null ? pipWindow.document.getElementById('like-btn') : customLikeBtn;
     customDislikeBtn = customDislikeBtn == null ? pipWindow.document.getElementById('dislike-btn') : customDislikeBtn;
@@ -704,8 +712,6 @@ async function setup() {
         });
     }
 
-
-    // Load custom control priority config from storage & listen for real-time changes
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         const loadCustomControls = (resultControls) => {
             if (resultControls && Array.isArray(resultControls)) {
@@ -743,11 +749,13 @@ async function setup() {
             return isNaN(num) ? 1.5 : Math.max(0.0, Math.min(3.0, num));
         };
 
-        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed'], (result) => {
+        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
             loadCustomControls(result?.customControls);
             if (result?.bgBrightness !== undefined) bgBrightnessVal = clampBrightness(result.bgBrightness);
             if (result?.bgBlur !== undefined) bgBlurVal = clampBlur(result.bgBlur);
             if (result?.bgSpeed !== undefined) bgSpeedFactor = clampSpeed(result.bgSpeed);
+            if (result?.lyricsMode !== undefined) currentLyricsDisplayMode = result.lyricsMode;
+            applyLyricsModeToDom();
             if (pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
                 updateCoverSizeFn();
             }
@@ -767,6 +775,10 @@ async function setup() {
                     }
                     if (changes.bgSpeed) {
                         bgSpeedFactor = clampSpeed(changes.bgSpeed.newValue);
+                    }
+                    if (changes.lyricsMode) {
+                        currentLyricsDisplayMode = changes.lyricsMode.newValue || 'both';
+                        applyLyricsModeToDom();
                     }
                     if ((changes.bgBrightness || changes.bgBlur || changes.bgSpeed) && pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
                         updateCoverSizeFn();
@@ -957,8 +969,8 @@ async function setup() {
             if (searchSpinner) searchSpinner.classList.remove('hide');
 
             searchDebounceTimer = setTimeout(async () => {
-                injectBridge();
-                const results = await askBridgeAsync("search", { query }, 8000);
+                injectMiniplayerScript();
+                const results = await askMiniplayerAsync("search", { query }, 8000);
                 if (searchSpinner) searchSpinner.classList.add('hide');
                 if (!searchList) return;
                 searchList.innerHTML = '';
@@ -1035,10 +1047,9 @@ async function setup() {
                                 qStatus.classList.remove('hide');
                             }
                             adjustPipWindowHeight(true);
-                            const retryDelays = [200, 600, 1200, 2000, 3200];
-                            retryDelays.forEach(ms => setTimeout(() => {
+                            setTimeout(() => {
                                 if (isQueueViewOpen) renderQueuePanel();
-                            }, ms));
+                            }, 400);
                         });
                     }
 
@@ -1056,8 +1067,8 @@ async function setup() {
                         if (artistSpan) {
                             artistSpan.textContent = 'Now playing';
                         }
-                        injectBridge();
-                        await askBridgeAsync("playVideo", { videoId: item.videoId });
+                        injectMiniplayerScript();
+                        await askMiniplayerAsync("playVideo", { videoId: item.videoId });
                     });
                     searchList.appendChild(div);
                 });
@@ -1067,7 +1078,7 @@ async function setup() {
 
     function togglePlaylistPanel(forceOpen, isAddMode) {
         if (!playlistContainer) return;
-        // If forceOpen is a boolean, use it directly; otherwise toggle
+        
         const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !isPlaylistViewOpen;
         if (typeof isAddMode !== 'undefined') {
             isAddToPlaylistMode = isAddMode;
@@ -1088,10 +1099,10 @@ async function setup() {
         }
     }
 
-    // Expose close fn to outer scope so setValues() can call it on song change
     closePlaylistPanelFn = () => togglePlaylistPanel(false);
 
     async function renderQueuePanel() {
+        syncQueueObserverState();
         const queueList = pipWindow.document.getElementById('queue-list');
         const queueCount = pipWindow.document.getElementById('queue-count');
         const queueStatus = pipWindow.document.getElementById('queue-status');
@@ -1119,7 +1130,7 @@ async function setup() {
                 <img class="panel-item-thumb" src="${thumbUrl}" alt="thumb" onerror="this.onerror=null;this.src='icons/icon48.png';" />
                 <div class="panel-item-info">
                     <span class="panel-item-title">${item.title}</span>
-                    <span class="panel-item-artist">${item.artist}</span>
+                    <span class="panel-item-artist">${item.selected ? 'Now playing' : item.artist}</span>
                 </div>
                 ${item.duration ? `<span class="panel-item-duration">${item.duration}</span>` : ''}
                 <button class="panel-item-action-btn" title="Start radio">
@@ -1135,8 +1146,8 @@ async function setup() {
 
             const playTrack = async () => {
                 div.classList.add('loading');
-                injectBridge();
-                await askBridgeAsync("playQueueIndex", { index: item.index });
+                injectMiniplayerScript();
+                await askMiniplayerAsync("playQueueIndex", { index: item.index });
                 const isNearEnd = item.index >= (queue.length - 5);
                 const delays = isNearEnd ? [300, 700, 1500, 2500] : [300, 800];
                 delays.forEach(ms => setTimeout(() => {
@@ -1326,7 +1337,7 @@ async function setup() {
                     }
                 });
             } else {
-                // Browse Playlists Mode: Handle Play and Shuffle clicks
+                
                 const playBtn = div.querySelector('.play-action-btn');
                 const shuffleBtn = div.querySelector('.shuffle-action-btn');
 
@@ -1334,7 +1345,6 @@ async function setup() {
                     activePlayingPlaylistId = cleanPlId || pl.id;
                     activePlayingMode = isShuffle ? 'shuffle' : 'play';
 
-                    // Update UI state immediately without closing container
                     renderPlaylistsList();
 
                     const app = document.querySelector('ytmusic-app');
@@ -1474,6 +1484,12 @@ async function setup() {
                 }
             }
             setTimeout(() => updatePipContent(), 50);
+
+            const _cc = pipWindow?.document?.querySelector('.controls');
+            if (_cc) _cc._lastRenderedKeys = null;
+            pipWindow.requestAnimationFrame(() => {
+                if (typeof updateCoverSizeFn === 'function') updateCoverSizeFn();
+            });
         });
     }
 
@@ -1619,10 +1635,10 @@ async function extractSongInfo() {
     const repeatButton = document.querySelector('.repeat.style-scope.ytmusic-player-bar');
     if (repeatButton) {
         const value = repeatButton.getAttribute('aria-aria-label') || repeatButton.getAttribute('value') || '';
-        // YouTube Music uses aria-pressed or repeat mode state class / icon
+        
         const iconPath = repeatButton.querySelector('path')?.getAttribute('d') || '';
         if (repeatButton.classList.contains('active') || repeatButton.getAttribute('aria-pressed') === 'true') {
-            // Check if repeat 1 or repeat all
+            
             const hasOneIcon = repeatButton.querySelector('svg')?.innerHTML.includes('1') || iconPath.includes('1');
             repeatMode = hasOneIcon ? 2 : 1;
         } else {
@@ -1701,15 +1717,15 @@ function injectPipButtonToPlayerBar() {
     const pipBtn = document.createElement('button');
     pipBtn.id = 'pipButton';
     pipBtn.className = 'pip-btn-injected style-scope yt-icon-button';
-    pipBtn.title = 'Picture-in-Picture';
-    pipBtn.setAttribute('aria-label', 'Picture-in-Picture');
+    pipBtn.title = 'Lyra Mini Player';
+    pipBtn.setAttribute('aria-label', 'Lyra Mini Player');
     pipBtn.style.cssText = `
         background: transparent;
         border: none;
         box-sizing: border-box;
         cursor: pointer;
         outline: none;
-        padding: 8px;
+        padding: 5px;
         margin: 0 2px;
         width: 40px;
         height: 40px;
@@ -1717,24 +1733,21 @@ function injectPipButtonToPlayerBar() {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--ytmusic-control-background-color, #909090);
-        transition: background-color 0.2s ease, color 0.2s ease;
+        transition: background-color 0.2s ease, transform 0.15s ease;
     `;
 
     pipBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" focusable="false" aria-hidden="true" style="pointer-events: none; display: block; width: 24px; height: 24px; fill: currentColor;">
-            <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"></path>
-        </svg>
+        <img src="${chrome.runtime.getURL('icons/icon512.png')}" style="width: 28px; height: 28px; object-fit: contain; pointer-events: none; display: block;" alt="Lyra Mini Player" />
     `;
 
     pipBtn.addEventListener('mouseenter', () => {
-        pipBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-        pipBtn.style.color = '#ffffff';
+        pipBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+        pipBtn.style.transform = 'scale(1.08)';
     });
 
     pipBtn.addEventListener('mouseleave', () => {
         pipBtn.style.backgroundColor = 'transparent';
-        pipBtn.style.color = 'var(--ytmusic-control-background-color, #909090)';
+        pipBtn.style.transform = 'scale(1)';
     });
 
     pipBtn.addEventListener('click', async (e) => {
@@ -1752,8 +1765,24 @@ function injectPipButtonToPlayerBar() {
 }
 
 registerMediaSessionPipHandler();
-injectPipButtonToPlayerBar();
-setInterval(injectPipButtonToPlayerBar, 1000);
+
+function initPipButtonObserver() {
+    injectPipButtonToPlayerBar();
+    const target = document.querySelector('#right-controls .right-controls-buttons') || document.querySelector('.right-controls-buttons') || document.querySelector('ytmusic-player-bar') || document.body;
+    if (target && !target.__lyraPipObserver) {
+        const observer = new MutationObserver(() => {
+            if (!document.getElementById('pipButton')) {
+                injectPipButtonToPlayerBar();
+            }
+        });
+        observer.observe(target, { childList: true, subtree: true });
+        target.__lyraPipObserver = observer;
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPipButtonObserver, { once: true });
+}
+initPipButtonObserver();
 
 let lastSavedW = null;
 let lastSavedH = null;
@@ -1789,18 +1818,23 @@ function getSavedPipSize() {
 
 function savePipSize() {
     if (!pipWindow || pipWindow.closed || isAutoResizingPip) return;
-    if (isLyricsViewOpen || isQueueViewOpen || isPlaylistViewOpen) return;
 
     const w = Math.max(150, Math.round(pipWindow.innerWidth || pipWindow.outerWidth));
     const h = Math.max(80, Math.round(pipWindow.innerHeight || pipWindow.outerHeight));
 
+    if (w > 0) {
+        baseUserWidth = w;
+    }
+
+    if (!isLyricsViewOpen && !isQueueViewOpen && !isPlaylistViewOpen && h > 0) {
+        baseUserHeight = h;
+    }
+
     if (w > 0 && h > 0 && (w !== lastSavedW || h !== lastSavedH)) {
         lastSavedW = w;
         lastSavedH = h;
-        baseUserWidth = w;
-        baseUserHeight = h;
 
-        const sizeData = { pipWidth: w, pipHeight: h };
+        const sizeData = { pipWidth: baseUserWidth, pipHeight: baseUserHeight };
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
             chrome.storage.local.set(sizeData);
         }
@@ -1905,7 +1939,7 @@ document.addEventListener('request-pip-window', async (event) => {
                 const ambientBg = root.querySelector('.ambient-bg');
                 const ambientOverlay = root.querySelector('.ambient-overlay');
                 if (ambientBg) {
-                    // Control background opacity smoothly based on slider (20% -> 1.0, 150% -> boost saturation/brightness filter)
+                    
                     if (bgBrightnessVal === 100) {
                         ambientBg.style.opacity = '1.0';
                         ambientBg.style.filter = 'none';
@@ -1916,23 +1950,22 @@ document.addEventListener('request-pip-window', async (event) => {
                         if (ambientOverlay) ambientOverlay.style.background = '';
                     } else {
                         ambientBg.style.opacity = '1.0';
-                        // Gentle brightness & saturation scaling capped at 150%
-                        const bFactor = (1 + (bgBrightnessVal - 100) * 0.003).toFixed(2); // max 1.15x at 150%
-                        const sFactor = (1 + (bgBrightnessVal - 100) * 0.005).toFixed(2); // max 1.25x at 150%
+                        
+                        const bFactor = (1 + (bgBrightnessVal - 100) * 0.003).toFixed(2); 
+                        const sFactor = (1 + (bgBrightnessVal - 100) * 0.005).toFixed(2); 
                         ambientBg.style.filter = `brightness(${bFactor}) saturate(${sFactor})`;
                         if (ambientOverlay) ambientOverlay.style.background = '';
                     }
 
                     const bgLayers = ambientBg.querySelectorAll('.bg-layer');
                     bgLayers.forEach(layer => {
-                        // Dynamically scale blur from 0% (0px blur) to 100% (default ~35-45px blur) to 200% (~70-90px blur)
+                        
                         let baseBlur = 45;
                         if (layer.classList.contains('bg-center')) baseBlur = 35;
                         else if (layer.classList.contains('bg-left') || layer.classList.contains('bg-right')) baseBlur = 30;
 
                         const currentBlur = Math.round(baseBlur * (bgBlurVal / 100));
 
-                        // Base filter components
                         let layerFilter = `blur(${currentBlur}px)`;
                         if (layer.classList.contains('bg-base')) layerFilter += ' brightness(0.7) saturate(2.0)';
                         else if (layer.classList.contains('bg-center')) layerFilter += ' brightness(0.8) saturate(2.2)';
@@ -2025,21 +2058,20 @@ document.addEventListener('request-pip-window', async (event) => {
                     }
                 }
 
-                // Dynamic responsive control buttons visibility logic
                 const controlsContainer = root.querySelector('.controls');
                 if (controlsContainer) {
                     const parentW = controlsContainer.parentElement ? controlsContainer.parentElement.clientWidth : 0;
                     const rawW = controlsContainer.clientWidth || controlsContainer.offsetWidth || w;
-                    const containerWidth = parentW > 0 ? Math.min(rawW, parentW) : rawW;
+                    let containerWidth = parentW > 0 ? Math.min(rawW, parentW) : rawW;
 
-                    // Estimated average width of a button is 32px + 4px gap.
-                    const optionalBtnWidth = 32 + 4; // 36px (width + gap)
+                    if (isLyricsViewOpen && w > 350) {
+                        containerWidth = Math.floor(w * 0.45) - 20;
+                    }
 
-                    // Priority rank for each slot index (0 to 6) corresponding to placeholders: [6, 4, 1, 2, 3, 5, 7]
-                    // Slot 2, 3, 4 (placeholders 1, 2, 3) have highest priority (ranks 1, 2, 3)
+                    const optionalBtnWidth = 32;
+
                     const slotPriorityRank = [6, 4, 1, 2, 3, 5, 7];
 
-                    // Find non-null items with their slot index and priority rank
                     const activeSlots = [];
                     customControlsPriority.forEach((btnId, slotIdx) => {
                         if (btnId !== null) {
@@ -2051,23 +2083,18 @@ document.addEventListener('request-pip-window', async (event) => {
                         }
                     });
 
-                    // Calculate how many buttons we can fit
                     let allowedOptionalCount = Math.floor(containerWidth / optionalBtnWidth);
                     allowedOptionalCount = Math.max(1, Math.min(allowedOptionalCount, activeSlots.length, 12));
 
-                    // Sort active slots by priority rank to pick the top `allowedOptionalCount` buttons
                     const sortedByPriority = [...activeSlots].sort((a, b) => a.rank - b.rank);
                     const selectedSlots = sortedByPriority.slice(0, allowedOptionalCount);
 
-                    // Re-sort selected slots back by their original slotIdx (left-to-right order)
                     selectedSlots.sort((a, b) => a.slotIdx - b.slotIdx);
 
-                    // Generate a cache key for current visible buttons in order
                     const currentKeys = selectedSlots.map(s => s.btnId).join(',');
                     if (controlsContainer._lastRenderedKeys !== currentKeys) {
                         controlsContainer._lastRenderedKeys = currentKeys;
 
-                        // Map of button IDs to their corresponding DOM elements
                         const btnDomMap = {
                             prev: root.querySelector('#prev-btn'),
                             play: root.querySelector('#playPause-btn'),
@@ -2086,12 +2113,10 @@ document.addEventListener('request-pip-window', async (event) => {
                             search: root.querySelector('#search-toggle-btn')
                         };
 
-                        // First, hide all buttons by default
                         Object.values(btnDomMap).forEach(btn => {
                             if (btn) btn.classList.add('hide');
                         });
 
-                        // Append active buttons to the container in their exact slot layout order!
                         const fragment = pipWindow.document.createDocumentFragment();
 
                         selectedSlots.forEach(item => {
@@ -2102,7 +2127,6 @@ document.addEventListener('request-pip-window', async (event) => {
                             }
                         });
 
-                        // Append the ordered visible elements back to the container
                         controlsContainer.appendChild(fragment);
                     }
                 }
@@ -2262,49 +2286,54 @@ function close() {
 
 let lyricsData = [];
 let currentLyricsSongKey = '';
-let lastKnownSongKey = ''; // Tracks song changes independently of lyrics state
+let lastKnownSongKey = ''; 
 let currentActiveLineIndex = -1;
 let isLyricsViewOpen = false;
 let wasLyricsViewOpenBeforeShrinking = false;
 let lastSyncedTime = 0;
 let lastSyncTimestamp = 0;
+let currentLyricsDisplayMode = 'both';
 
-// ---- YouTube Music Companion Innertube API & Queue/Playlist Helper Block ----
+function applyLyricsModeToDom() {
+    if (!pipWindow || pipWindow.closed) return;
+    const lyricsContainer = pipWindow.document.getElementById('lyrics-container');
+    if (lyricsContainer) {
+        lyricsContainer.setAttribute('data-lyrics-mode', currentLyricsDisplayMode);
+    }
+}
 
-// ---- YouTube Music Companion Page Bridge Communication ----
-
-function injectBridge() {
-    if (document.getElementById('lyra-bridge-script')) return;
+function injectMiniplayerScript() {
+    if (document.getElementById('lyra-miniplayer-script')) return;
     const script = document.createElement('script');
-    script.id = 'lyra-bridge-script';
-    script.src = chrome.runtime.getURL('bridge.js');
+    script.id = 'lyra-miniplayer-script';
+    script.src = chrome.runtime.getURL('miniplayer.js');
     script.onload = () => script.remove();
     (document.head || document.documentElement).appendChild(script);
 }
-injectBridge();
+injectMiniplayerScript();
 
-let bridgeRequestCounter = 0;
-const pendingBridgeRequests = new Map();
+let miniplayerRequestCounter = 0;
+const pendingMiniplayerRequests = new Map();
 
 window.addEventListener("message", (e) => {
-    if (e.source !== window || e.data?.source !== "lyra-bridge") return;
-    if (e.data.type === "response" && pendingBridgeRequests.has(e.data.requestId)) {
-        pendingBridgeRequests.get(e.data.requestId)(e.data.result);
-        pendingBridgeRequests.delete(e.data.requestId);
+    if (e.source !== window || e.data?.source !== "lyra-miniplayer") return;
+    if (e.data.type === "response" && pendingMiniplayerRequests.has(e.data.requestId)) {
+        pendingMiniplayerRequests.get(e.data.requestId)(e.data.result);
+        pendingMiniplayerRequests.delete(e.data.requestId);
     }
 });
 
-function askBridgeAsync(command, payload = {}, timeoutMs = 8000) {
+function askMiniplayerAsync(command, payload = {}, timeoutMs = 8000) {
     return new Promise((resolve) => {
-        const requestId = ++bridgeRequestCounter;
+        const requestId = ++miniplayerRequestCounter;
         const timer = setTimeout(() => {
-            if (pendingBridgeRequests.has(requestId)) {
-                pendingBridgeRequests.delete(requestId);
+            if (pendingMiniplayerRequests.has(requestId)) {
+                pendingMiniplayerRequests.delete(requestId);
                 resolve(null);
             }
         }, timeoutMs);
 
-        pendingBridgeRequests.set(requestId, (res) => {
+        pendingMiniplayerRequests.set(requestId, (res) => {
             clearTimeout(timer);
             resolve(res);
         });
@@ -2368,8 +2397,8 @@ async function getQueueWithThumbs() {
         (item) => !item.closest("#counterpart-renderer")
     );
 
-    injectBridge();
-    const storeData = (await askBridgeAsync("getQueueData", {}, 3000)) || [];
+    injectMiniplayerScript();
+    const storeData = (await askMiniplayerAsync("getQueueData", {}, 3000)) || [];
 
     const thumbByTitle = new Map(
         storeData.filter(e => e && e.thumb).map(e => [e.title, e.thumb])
@@ -2490,9 +2519,9 @@ function readPlaylistsFromDOM() {
 }
 
 async function fetchPlaylists() {
-    injectBridge();
+    injectMiniplayerScript();
     
-    let playlists = await askBridgeAsync("getPlaylists", {}, 4000);
+    let playlists = await askMiniplayerAsync("getPlaylists", {}, 4000);
     
     if (!Array.isArray(playlists) || !playlists.length) {
         playlists = readPlaylistsFromDOM();
@@ -2500,7 +2529,7 @@ async function fetchPlaylists() {
     
     if (!Array.isArray(playlists) || !playlists.length) {
         await new Promise(r => setTimeout(r, 600));
-        playlists = await askBridgeAsync("getPlaylists", {}, 4000);
+        playlists = await askMiniplayerAsync("getPlaylists", {}, 4000);
         if (!Array.isArray(playlists) || !playlists.length) {
             playlists = readPlaylistsFromDOM();
         }
@@ -2519,8 +2548,8 @@ async function fetchPlaylists() {
 
 async function addToPlaylist(playlistId, videoId) {
     if (!playlistId || !videoId) return "error";
-    injectBridge();
-    const res = await askBridgeAsync("addToPlaylist", { playlistId, videoId }, 8000);
+    injectMiniplayerScript();
+    const res = await askMiniplayerAsync("addToPlaylist", { playlistId, videoId }, 8000);
     return res || "error";
 }
 
@@ -2540,13 +2569,12 @@ function getCurrentVideoId() {
     return null;
 }
 
-// Global UI State & Height Resizing for PiP
 let isQueueViewOpen = false;
 let isPlaylistViewOpen = false;
 let isAddToPlaylistMode = false;
 let activePlayingPlaylistId = null;
-let activePlayingMode = null; // 'play' or 'shuffle'
-// Callback ref set by setup() so outer scope can close playlist panel
+let activePlayingMode = null; 
+
 let closePlaylistPanelFn = null;
 function adjustPipWindowHeight(needExpand) {
     if (!needExpand || !pipWindow || pipWindow.closed) return;
@@ -2556,7 +2584,8 @@ function adjustPipWindowHeight(needExpand) {
     if (currentInnerH < minRequiredInnerHeight) {
         setAutoResizingLock(1000);
         try {
-            pipWindow.resizeTo(baseUserWidth, minRequiredInnerHeight);
+            const currentW = Math.round(pipWindow.outerWidth || pipWindow.innerWidth || baseUserWidth);
+            pipWindow.resizeTo(currentW, minRequiredInnerHeight);
         } catch (err) { }
     }
 }
@@ -2708,7 +2737,7 @@ let isLyricsSynced = false;
 
 let currentLyricsSource = 'Source: LRCLIB';
 
-const LYRICS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 Days in milliseconds
+const LYRICS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; 
 
 function cleanExpiredLyricsCache() {
     if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
@@ -2729,7 +2758,7 @@ function cleanExpiredLyricsCache() {
         }
     });
 }
-// Clean expired lyrics cache once on load
+
 cleanExpiredLyricsCache();
 
 function getLyricsFromStorage(songKey) {
@@ -2766,7 +2795,6 @@ function saveLyricsToStorage(songKey, data, source) {
 
 let ytmBrowseLyrics = null;
 
-// Intercept YouTube Music API response for Lyrics
 (function setupYtmApiInterceptor() {
     if (window._lyraInterceptorSetup) return;
     window._lyraInterceptorSetup = true;
@@ -2781,7 +2809,7 @@ let ytmBrowseLyrics = null;
                 const clone = response.clone();
                 clone.json().then(data => {
                     if (!data) return;
-                    // Parse YouTube Music Browse API response for lyrics tab data
+                    
                     const contents = data.contents?.singleColumnBrowseResultsRenderer?.tabs;
                     if (Array.isArray(contents)) {
                         for (const tab of contents) {
@@ -2812,12 +2840,11 @@ let ytmBrowseLyrics = null;
 
 function getLyricsFromDom() {
     try {
-        // 1. Check if YTM Browse API interceptor captured lyrics
+        
         if (ytmBrowseLyrics && ytmBrowseLyrics.length > 0) {
             return ytmBrowseLyrics;
         }
 
-        // 2. Exact DOM Selectors based on YouTube Music HTML Structure
         const selectors = [
             'ytmusic-description-shelf-renderer .description[split-lines]',
             'ytmusic-description-shelf-renderer .description',
@@ -2829,11 +2856,11 @@ function getLyricsFromDom() {
         for (const sel of selectors) {
             const elements = document.querySelectorAll(sel);
             for (const el of elements) {
-                // Use textContent to preserve linebreaks from split-lines attribute
+                
                 const rawText = el.textContent || el.innerText || '';
                 const text = rawText.trim();
                 if (text.length > 5) {
-                    // Split lines, trim each, filter out source footer lines
+                    
                     const lines = text.split('\n')
                         .map(l => l.trim())
                         .filter(l => l.length > 0 && !/^source:|^lyricist:/i.test(l));
@@ -2899,7 +2926,6 @@ async function fetchSyncedLyrics(title, artist) {
     const artistParts = artist.split(/[,&•]|\bft\.\b|\bfeat\.\b/i).map(a => a.trim()).filter(Boolean);
     const primaryArtist = artistParts[0] || artist.split('•')[0].split(',')[0].trim();
 
-    // 1. Check local storage cache first (30-day TTL)
     const cachedLyrics = await getLyricsFromStorage(key);
     if (cachedLyrics && cachedLyrics.data) {
         if (!cachedLyrics.data.artistName || isArtistMatching(cachedLyrics.data.artistName, primaryArtist, artistParts, artist)) {
@@ -2912,7 +2938,6 @@ async function fetchSyncedLyrics(title, artist) {
         }
     }
 
-    // 2. Prioritize online API search (LRCLIB parallel fetch) for synced/karaoke lyrics first
     const headers = {
         'Lrclib-Client': 'Star_s YTM v1.0.0 (https://github.com/star-ytm)'
     };
@@ -2943,7 +2968,6 @@ async function fetchSyncedLyrics(title, artist) {
         }
     };
 
-    // Construct all URL queries to run in PARALLEL
     const fetchPromises = [];
 
     titleCandidates.forEach(targetTitle => {
@@ -2952,7 +2976,6 @@ async function fetchSyncedLyrics(title, artist) {
             params += `&duration=${durationSec}`;
         }
 
-        // Exact get with duration
         fetchPromises.push((async () => {
             try {
                 const res = await fetchWithTimeout(`https://lrclib.net/api/get?${params}`, { headers });
@@ -2961,7 +2984,6 @@ async function fetchSyncedLyrics(title, artist) {
             return null;
         })());
 
-        // Exact get without duration
         if (durationSec > 0) {
             fetchPromises.push((async () => {
                 try {
@@ -2972,7 +2994,6 @@ async function fetchSyncedLyrics(title, artist) {
             })());
         }
 
-        // Search by artist parts
         artistParts.forEach(part => {
             fetchPromises.push((async () => {
                 try {
@@ -2989,7 +3010,6 @@ async function fetchSyncedLyrics(title, artist) {
             })());
         });
 
-        // Search q
         fetchPromises.push((async () => {
             try {
                 const res = await fetchWithTimeout(`https://lrclib.net/api/search?q=${encodeURIComponent(targetTitle + ' ' + primaryArtist)}`, { headers });
@@ -3005,7 +3025,6 @@ async function fetchSyncedLyrics(title, artist) {
         })());
     });
 
-    // Fallback search by title only - MUST validate artist
     fetchPromises.push((async () => {
         try {
             const res = await fetchWithTimeout(`https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}`, { headers });
@@ -3032,7 +3051,6 @@ async function fetchSyncedLyrics(title, artist) {
         }
     } catch (e) { }
 
-    // 3. Fallback: Extract from YTM DOM / auto-click LYRICS tab if API has no lyrics
     let domLyrics = getLyricsFromDom();
     if (!domLyrics) {
         const paperTabs = Array.from(document.querySelectorAll('tp-yt-paper-tab.tab-header, tp-yt-paper-tab'));
@@ -3109,9 +3127,9 @@ function processLyricsData(data, triggerSave = false, songKey = '') {
 const romanizeCache = new Map();
 
 function detectLangCode(text) {
-    if (/[\u3040-\u30ff]/.test(text)) return 'ja'; // Japanese Hiragana/Katakana
-    if (/[\uac00-\ud7af]/.test(text)) return 'ko'; // Korean Hangul
-    if (/[\u3400-\u4dbf\u4e00-\u9fff]/.test(text)) return 'zh-CN'; // Chinese Hanzi
+    if (/[\u3040-\u30ff]/.test(text)) return 'ja'; 
+    if (/[\uac00-\ud7af]/.test(text)) return 'ko'; 
+    if (/[\u3400-\u4dbf\u4e00-\u9fff]/.test(text)) return 'zh-CN'; 
     return 'ja';
 }
 
@@ -3129,8 +3147,7 @@ async function fetchRomanizedText(text) {
         if (res.ok) {
             const data = await res.json();
             let rawRomanized = '';
-            
-            // 1. Try finding transliteration string in data[0] (item[3] or item[2])
+
             if (Array.isArray(data) && Array.isArray(data[0])) {
                 const translitChunks = data[0]
                     .map(item => (Array.isArray(item) && item[3]) ? item[3] : ((Array.isArray(item) && item[2]) ? item[2] : ''))
@@ -3140,14 +3157,13 @@ async function fetchRomanizedText(text) {
                 }
             }
 
-            // 2. Fallback: Check data[1] or other sub-arrays if rawRomanized is empty
             if (!rawRomanized && Array.isArray(data[1])) {
                 const altChunks = data[1].map(item => Array.isArray(item) ? item[0] : '').filter(Boolean);
                 if (altChunks.length > 0) rawRomanized = altChunks.join(' ');
             }
 
             if (rawRomanized) {
-                // Strip away original CJK characters (Hangul, Kanji, Kana) if any leak into the transliteration string
+                
                 let cleanRomanized = rawRomanized
                     .replace(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/g, '')
                     .replace(/[\u2200-\u2BFF\u2000-\u206F\u0000-\u001F]/g, '')
@@ -3166,6 +3182,7 @@ async function fetchRomanizedText(text) {
 
 async function renderLyricsList() {
     if (!pipWindow || pipWindow.closed) return;
+    currentActiveLineIndex = -1;
     const statusEl = pipWindow.document.getElementById('lyrics-status');
     const listEl = pipWindow.document.getElementById('lyrics-list');
 
@@ -3176,7 +3193,6 @@ async function renderLyricsList() {
 
     if (statusEl) statusEl.textContent = 'Translating lyrics...';
 
-    // Pre-fetch all romanized lines in parallel if needed
     const cjkRegex = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\u0400-\u04ff]/;
     const hasCJK = lyricsData.some(item => cjkRegex.test(item.text));
 
@@ -3189,6 +3205,7 @@ async function renderLyricsList() {
     }
 
     if (!pipWindow || pipWindow.closed) return;
+    applyLyricsModeToDom();
     if (statusEl) statusEl.textContent = '';
     listEl.innerHTML = '';
 
@@ -3236,14 +3253,19 @@ async function renderLyricsList() {
 
         vocalsGroup.appendChild(vocals);
 
+        let subText = null;
         if (cjkRegex.test(item.text)) {
-            const romText = romanizeCache.get(item.text);
-            if (romText) {
-                const romEl = pipWindow.document.createElement('div');
-                romEl.className = 'lyra-romanized';
-                romEl.textContent = romText;
-                vocalsGroup.appendChild(romEl);
-            }
+            subText = romanizeCache.get(item.text);
+        } else if (hasCJK && item.text && item.text.trim().length > 0) {
+            subText = item.text;
+        }
+
+        if (subText) {
+            const romEl = pipWindow.document.createElement('div');
+            romEl.className = 'lyra-romanized';
+            romEl.textContent = subText;
+            vocalsGroup.appendChild(romEl);
+            vocalsGroup.classList.add('has-romaji');
         }
 
         vocalsGroup.addEventListener('click', () => {
@@ -3320,7 +3342,8 @@ function updateActiveLyricLine(currentTime, deltaTime) {
     const listEl = pipWindow.document.getElementById('lyrics-list');
     if (!listEl) return;
 
-    if (activeIndex !== currentActiveLineIndex) {
+    const hasActiveEl = listEl.querySelector('.lyra-line.active');
+    if (activeIndex !== currentActiveLineIndex || !hasActiveEl) {
         currentActiveLineIndex = activeIndex;
 
         const allWraps = listEl.querySelectorAll('.lyra-line-wrap');

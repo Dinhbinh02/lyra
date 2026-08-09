@@ -2,6 +2,31 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 body {
@@ -221,7 +246,6 @@ body {
     display: none !important;
 }
 
-/* Settings Icon Button Styling */
 .settings-btn-icon {
     background: none;
     border: none;
@@ -245,7 +269,6 @@ body {
     background: rgba(255, 255, 255, 0.15);
 }
 
-/* Customization Interface */
 #toolbar-customization-section {
     gap: 4px !important;
 }
@@ -347,7 +370,6 @@ body {
     color: #ff4d4d;
 }
 
-/* Close/Remove indicator style inside slot */
 .slot-remove {
     position: absolute;
     top: -4px;
@@ -366,7 +388,7 @@ body {
     opacity: 0;
     transition: opacity 0.15s ease;
     pointer-events: none;
-    /* Let clicks pass to the slot click listener */
+    
 }
 
 .slot.filled:hover .slot-remove {
@@ -439,7 +461,6 @@ body {
     display: block;
 }
 
-/* Background & Animation Settings */
 .setting-row {
     display: flex;
     flex-direction: column;
@@ -494,4 +515,36 @@ body {
 
 .setting-slider::-webkit-slider-thumb:hover {
     transform: scale(1.2);
+}
+
+.setting-select {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    margin-top: 2px;
+    transition: all 0.15s ease;
+}
+
+.setting-select:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.setting-select:focus {
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.2);
+}
+
+.setting-select option {
+    background: #18181c;
+    color: #ffffff;
 }

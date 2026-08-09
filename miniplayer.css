@@ -316,7 +316,6 @@ body,
     transform: translateX(-1px);
 }
 
-/* Align active states for Mute, Like, Dislike, Shuffle, Repeat */
 .control-btn.active svg {
     color: #ffffff;
 }
@@ -637,8 +636,6 @@ body,
     }
 }
 
-/* Responsive hiding rules for repeat/shuffle hardcodes are removed. Now handled dynamically. */
-
 #mini-player-root.lyrics-mode .top-section {
     display: none !important;
 }
@@ -647,10 +644,8 @@ body,
     justify-content: flex-end;
 }
 
-/* Mode 2 Lyrics override rules (min-height: 100px and max-height: 179px) */
 @container player (min-height: 100px) and (max-height: 179px) {
 
-    /* When width > 350px in Mode 2 */
     @container player (min-width: 351px) {
         #mini-player-root.lyrics-mode .top-section {
             display: flex !important;
@@ -673,13 +668,10 @@ body,
     }
 }
 
-/* Mode 3 Lyrics override rules (min-height: 180px) */
 @container player (min-height: 180px) {
 
-    /* When width > 350px in Mode 3: 2-Column Split Layout matching Apple Music / Spotify */
     @container player (min-width: 351px) {
 
-        /* Left Column Panel Container (Cover + Song Info + Controls + Progress Bar) */
         #mini-player-root.lyrics-mode .player-container {
             display: flex !important;
             flex-direction: column !important;
@@ -753,7 +745,6 @@ body,
             max-width: 100% !important;
         }
 
-        /* Controls & Progress bar placed directly underneath song info, aligned together in left panel */
         #mini-player-root.lyrics-mode .middle-section {
             position: relative !important;
             top: auto !important;
@@ -775,7 +766,6 @@ body,
             flex: 0 0 auto !important;
         }
 
-        /* Right Column: Lyrics Container */
         #mini-player-root.lyrics-mode .lyrics-container {
             position: absolute !important;
             top: 0 !important;
@@ -886,7 +876,7 @@ body,
 .lyra-line.active {
     color: #ffffff;
     opacity: 1;
-    font-weight: 600;
+    font-weight: 700;
     transform: none;
 }
 
@@ -895,21 +885,18 @@ body,
     opacity: 0.45;
 }
 
-.lyra-line.active .lyra-letter.active {
+.lyra-line.active .lyra-letter.active,
+.lyra-line.active .lyra-letter.sung {
     color: #ffffff;
     opacity: 1;
-    font-weight: 600;
+    font-weight: 700;
 }
 
-.lyra-line.active .lyra-letter.sung,
+.lyra-line.sung,
 .lyra-line.sung .lyra-letter {
-    color: #ffffff;
-    opacity: 1;
-}
-
-.lyra-line.sung {
-    color: #ffffff;
-    opacity: 1;
+    color: rgba(255, 255, 255, 0.45);
+    opacity: 0.45;
+    font-weight: 600;
 }
 
 .lyrics-list.plain-mode .lyra-line,
@@ -929,17 +916,28 @@ body,
     user-select: none;
 }
 
-.lyra-line-wrap:has(.lyra-romanized) .lyra-line {
+.lyrics-container[data-lyrics-mode="original"] .lyra-romanized {
     display: none !important;
 }
 
+.lyrics-container[data-lyrics-mode="romaji"] .lyra-line-wrap.has-romaji .lyra-line {
+    display: none !important;
+}
+
+.lyrics-container[data-lyrics-mode="romaji"] .lyra-romanized {
+    font-size: clamp(17px, 3cqw + 6px, 22px) !important;
+    font-weight: 700 !important;
+    margin-top: 0 !important;
+    line-height: 1.4 !important;
+}
+
 .lyra-romanized {
-    font-size: clamp(15px, 2.5cqw + 5px, 18px);
+    font-size: clamp(11.5px, 1.8cqw + 3px, 13.5px);
     color: rgba(255, 255, 255, 0.45);
     opacity: 0.55;
-    margin-top: 0;
-    font-weight: 600;
-    line-height: 1.4;
+    margin-top: 3px;
+    font-weight: 500;
+    line-height: 1.35;
     text-align: center;
     transition: color 0.35s ease, opacity 0.35s ease;
     transform: none;
@@ -947,16 +945,21 @@ body,
 }
 
 .lyra-line.active+.lyra-romanized {
-    color: #ffffff;
-    opacity: 1;
-    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    opacity: 0.9;
+    font-weight: 500;
     transform: none;
 }
 
 .lyra-line.sung+.lyra-romanized {
     color: rgba(255, 255, 255, 0.35);
-    opacity: 0.5;
+    opacity: 0.45;
     transform: none;
+}
+
+.lyrics-container[data-lyrics-mode="romaji"] .lyra-line.active+.lyra-romanized {
+    color: #ffffff !important;
+    opacity: 1 !important;
 }
 
 @keyframes lyraShake {
@@ -1038,7 +1041,6 @@ tp-yt-paper-dialog:has(ytmusic-mealbar-promotion-renderer) {
     display: none !important;
 }
 
-/* ---- Queue & Playlist Ambient Panels ---- */
 #mini-player-root.queue-mode .top-section,
 #mini-player-root.playlist-mode .top-section,
 #mini-player-root.search-mode .top-section,
@@ -1086,8 +1088,9 @@ tp-yt-paper-dialog:has(ytmusic-mealbar-promotion-renderer) {
 .panel-title {
     font-size: 14px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
+    color: rgba(255, 255, 255, 0.7);
     letter-spacing: 0.3px;
+    transition: color 0.15s ease;
 }
 
 .panel-subtitle {
@@ -1104,11 +1107,11 @@ tp-yt-paper-dialog:has(ytmusic-mealbar-promotion-renderer) {
     user-select: none;
     padding: 2px 6px 2px 0;
     border-radius: 6px;
-    transition: opacity 0.15s ease;
+    transition: all 0.15s ease;
 }
 
-.panel-header-left:hover {
-    opacity: 0.85;
+.panel-header-left:hover .panel-title {
+    color: #ffffff;
 }
 
 .panel-header-left:hover .panel-back-btn {

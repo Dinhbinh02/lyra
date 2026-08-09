@@ -83,6 +83,17 @@
         <input type="range" id="bg-speed-slider" min="0" max="30" value="15" step="1" class="setting-slider">
       </div>
 
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-title">Lyrics Display</span>
+        </div>
+        <select id="lyrics-mode-select" class="setting-select">
+          <option value="both">Both (Original + Rōmaji)</option>
+          <option value="original">Original Lyrics Only</option>
+          <option value="romaji">Rōmaji Lyrics Only</option>
+        </select>
+      </div>
+
       <div class="section-label" style="margin-top: 8px;">TOOLBAR CUSTOMIZATION</div>
 
       <div class="active-layout-header">
@@ -90,7 +101,7 @@
         <button id="reset-layout-btn" class="reset-btn" title="Reset to Default Layout">Reset</button>
       </div>
       <div class="slots-row">
-        <!-- 7 Dynamic Slots (1 to 7, Dashed outline) -->
+        
         <div class="slot optional-slot" data-slot="0"><span class="placeholder-num">6</span></div>
         <div class="slot optional-slot" data-slot="1"><span class="placeholder-num">4</span></div>
         <div class="slot optional-slot middle-slot" data-slot="2"><span class="placeholder-num">1</span></div>
@@ -101,7 +112,7 @@
       </div>
       <div class="slots-hint">Buttons appear in priority order (1 → 7)</div>
 
-      <div class="section-sublabel">Available Buttons (Click to Add)</div>
+      <div class="section-sublabel">Available Buttons (Click or Drag to Add)</div>
       <div class="available-list">
         <div class="available-item" data-id="prev" title="Previous Track">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"

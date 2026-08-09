@@ -1,8 +1,5 @@
-// Runs in the PAGE context (injected by content.js), where YTM's internal
-// player API and window.ytcfg are reachable. Talks to content script via window.postMessage.
-
 (() => {
-    const FROM_BRIDGE = "lyra-bridge";
+    const FROM_MINIPLAYER = "lyra-miniplayer";
     const FROM_CONTENT = "lyra-content";
 
     const cfgGet = (key) => window.ytcfg?.get?.(key) ?? window.ytcfg?.data_?.[key];
@@ -54,7 +51,7 @@
             const state = queueEl?.queue?.store?.store?.getState?.() ?? queueEl?.queue?.store?.getState?.();
             const q = state?.queue;
             if (q) items = [...(q.items ?? []), ...(q.automixItems ?? [])];
-        } catch (err) {}
+        } catch (err) { }
 
         if (!Array.isArray(items) || !items.length) {
             try {
@@ -256,19 +253,19 @@
 
         if (command === "getPlaylists") {
             const result = await getPlaylists();
-            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         } else if (command === "getQueueData") {
             const result = readQueueData();
-            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         } else if (command === "search") {
             const result = await searchMusic(payload.query);
-            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         } else if (command === "addToPlaylist") {
             const result = await addToPlaylist(payload.playlistId, payload.videoId);
-            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         } else if (command === "playVideo") {
             const result = await playVideo(payload.videoId);
-            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result }, window.location.origin);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         } else if (command === "playQueueIndex") {
             const scope = document.querySelector("ytmusic-player-queue") ?? document;
             const items = [...scope.querySelectorAll("ytmusic-player-queue-item")].filter(
@@ -279,7 +276,7 @@
                 const target = item.querySelector("ytmusic-play-button-renderer") ?? item;
                 target.click();
             }
-            window.postMessage({ source: FROM_BRIDGE, type: "response", requestId, result: true }, window.location.origin);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result: true }, window.location.origin);
         }
     });
 })();

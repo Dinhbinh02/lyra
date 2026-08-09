@@ -2,7 +2,7 @@
    "manifest_version": 3,
    "name": "__MSG_appName__",
    "default_locale": "en",
-   "version": "0.1.4",
+   "version": "0.1.6",
    "description": "__MSG_appDescription__",
    "icons": {
       "16": "icons/icon16.png",
@@ -49,7 +49,8 @@
          "resources": [
             "miniplayer.css",
             "miniplayer.html",
-            "bridge.js"
+            "miniplayer.js",
+            "icons/*"
          ],
          "matches": [
             "*://music.youtube.com/*"

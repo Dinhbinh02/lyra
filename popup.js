@@ -24,11 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Toolbar Customization logic
     const availableItems = document.querySelectorAll('.available-item');
     const optionalSlots = document.querySelectorAll('.optional-slot');
-    
-    // Map IDs to display custom SVGs in the active slots
+
     const iconMap = {
         repeat: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="17 1 21 5 17 9"></polyline>
@@ -107,8 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </svg>`
     };
 
-    // Default configuration: first few options pre-filled (5 buttons, 2 empty slots: first and last)
-    const defaultButtons = [null, 'repeat', 'prev', 'play', 'next', 'lyrics', null];
+    const defaultButtons = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
     let activeButtons = [null, null, null, null, null, null, null];
 
     function saveConfig() {
@@ -133,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
             item.style.opacity = '';
         });
 
-        // Fill slots based on activeButtons list
         activeButtons.forEach((btnId, index) => {
             if (index < optionalSlots.length) {
                 const slot = optionalSlots[index];
@@ -143,10 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${iconMap[btnId]}
                         <div class="slot-remove"><span>x</span></div>
                     `;
-                    // Click on the slot to remove the button
-                    slot.onclick = () => removeButton(index);
                     
-                    // Disable it in the available list so it can't be added twice
+                    slot.onclick = () => removeButton(index);
+
                     const availableItem = document.querySelector(`.available-item[data-id="${btnId}"]`);
                     if (availableItem) {
                         availableItem.classList.add('disabled');
@@ -156,13 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Implement HTML5 Drag and Drop with live hover swapping
     let draggedBtnId = null;
     let draggedFromSlotIdx = null;
     let originalButtonsState = null;
     let lastHoveredSlotIdx = null;
 
-    // Make available items draggable
     availableItems.forEach(item => {
         item.setAttribute('draggable', 'true');
         item.addEventListener('dragstart', (e) => {
@@ -257,8 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!draggedBtnId) return;
 
-            // Commit change
-            originalButtonsState = null; // Don't revert on dragend
+            originalButtonsState = null; 
             saveConfig();
             renderToolbar();
 
@@ -297,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Attach click events to available list items
     availableItems.forEach(item => {
         item.addEventListener('click', () => {
             const btnId = item.getAttribute('data-id');
@@ -307,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Settings panel toggle
     const settingsToggleBtn = document.getElementById('settings-toggle-btn');
     const customizationSection = document.getElementById('toolbar-customization-section');
     const howToUseSection = document.getElementById('main-how-to-use-section');
@@ -330,13 +320,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Background & Animation Settings
     const brightnessSlider = document.getElementById('bg-brightness-slider');
     const brightnessVal = document.getElementById('bg-brightness-val');
     const blurSlider = document.getElementById('bg-blur-slider');
     const blurVal = document.getElementById('bg-blur-val');
     const speedSlider = document.getElementById('bg-speed-slider');
     const speedVal = document.getElementById('bg-speed-val');
+    const lyricsModeSelect = document.getElementById('lyrics-mode-select');
 
     function updateBrightnessUI(val) {
         if (brightnessSlider) brightnessSlider.value = val;
@@ -389,9 +379,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Load saved configuration from storage
+    if (lyricsModeSelect) {
+        lyricsModeSelect.addEventListener('change', (e) => {
+            const val = e.target.value || 'both';
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ lyricsMode: val });
+            }
+        });
+    }
+
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed'], (result) => {
+        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
             if (result && result.customControls && Array.isArray(result.customControls)) {
                 activeButtons = [null, null, null, null, null, null, null];
                 result.customControls.forEach((btn, idx) => {
@@ -410,30 +408,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const savedSpeed = result?.bgSpeed !== undefined ? Math.round(result.bgSpeed * 10) : 15;
             updateSpeedUI(savedSpeed);
+
+            const savedLyricsMode = result?.lyricsMode || 'both';
+            if (lyricsModeSelect) lyricsModeSelect.value = savedLyricsMode;
         });
     } else {
         activeButtons = [...defaultButtons];
         renderToolbar();
     }
 
-    // Attach click events to reset background button
     const resetBgBtn = document.getElementById('reset-bg-btn');
     if (resetBgBtn) {
         resetBgBtn.addEventListener('click', () => {
             updateBrightnessUI(120);
             updateBlurUI(90);
             updateSpeedUI(15);
+            if (lyricsModeSelect) lyricsModeSelect.value = 'both';
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.set({
                     bgBrightness: 120,
                     bgBlur: 90,
-                    bgSpeed: 1.5
+                    bgSpeed: 1.5,
+                    lyricsMode: 'both'
                 });
             }
         });
     }
 
-    // Attach click events to reset layout button
     const resetLayoutBtn = document.getElementById('reset-layout-btn');
     if (resetLayoutBtn) {
         resetLayoutBtn.addEventListener('click', () => {
