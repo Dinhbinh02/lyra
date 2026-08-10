@@ -126,13 +126,14 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 5px;
+    padding: 1px 3px;
     margin: 0 2px;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 5px;
     color: #ffffff;
     vertical-align: middle;
+    transform: translateY(-1px);
 }
 
 .yt-link {
@@ -449,9 +450,13 @@ body {
     width: 100%;
 }
 
-.pip-inline-svg {
+.pip-inline-svg,
+.pip-inline-img {
     display: inline-block;
     vertical-align: middle;
+    width: 17px;
+    height: 17px;
+    object-fit: contain;
 }
 
 .available-item-svg {

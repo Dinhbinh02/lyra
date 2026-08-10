@@ -109,8 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeButtons = [null, null, null, null, null, null, null];
 
     function saveConfig() {
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.set({ customControls: activeButtons });
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        if (storage) {
+            storage.set({ customControls: activeButtons });
         }
     }
 
@@ -349,8 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isNaN(val)) val = 120;
             val = Math.max(20, Math.min(150, val));
             updateBrightnessUI(val);
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({ bgBrightness: val });
+            const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+            if (storage) {
+                storage.set({ bgBrightness: val });
             }
         });
     }
@@ -361,8 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isNaN(val)) val = 90;
             val = Math.max(70, Math.min(150, val));
             updateBlurUI(val);
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({ bgBlur: val });
+            const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+            if (storage) {
+                storage.set({ bgBlur: val });
             }
         });
     }
@@ -373,8 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isNaN(val)) val = 15;
             val = Math.max(0, Math.min(30, val));
             updateSpeedUI(val);
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({ bgSpeed: val / 10 });
+            const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+            if (storage) {
+                storage.set({ bgSpeed: val / 10 });
             }
         });
     }
@@ -382,14 +386,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lyricsModeSelect) {
         lyricsModeSelect.addEventListener('change', (e) => {
             const val = e.target.value || 'both';
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({ lyricsMode: val });
+            const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+            if (storage) {
+                storage.set({ lyricsMode: val });
             }
         });
     }
 
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
+    const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+    if (storage) {
+        const applySettings = (result) => {
             if (result && result.customControls && Array.isArray(result.customControls)) {
                 activeButtons = [null, null, null, null, null, null, null];
                 result.customControls.forEach((btn, idx) => {
@@ -411,6 +417,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const savedLyricsMode = result?.lyricsMode || 'both';
             if (lyricsModeSelect) lyricsModeSelect.value = savedLyricsMode;
+        };
+
+        storage.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
+            if ((!result || Object.keys(result).length === 0) && chrome.storage.local && storage !== chrome.storage.local) {
+                chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (localRes) => {
+                    applySettings(localRes);
+                });
+            } else {
+                applySettings(result);
+            }
         });
     } else {
         activeButtons = [...defaultButtons];
@@ -424,8 +440,9 @@ document.addEventListener('DOMContentLoaded', () => {
             updateBlurUI(90);
             updateSpeedUI(15);
             if (lyricsModeSelect) lyricsModeSelect.value = 'both';
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({
+            const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+            if (storage) {
+                storage.set({
                     bgBrightness: 120,
                     bgBlur: 90,
                     bgSpeed: 1.5,

@@ -566,7 +566,7 @@ body,
 
 @container player (min-height: 180px) {
     .player-container {
-        padding: 10px 10px 5px;
+        padding: 6px 8px 5px;
         flex-direction: column;
         justify-content: flex-start;
         align-items: center;

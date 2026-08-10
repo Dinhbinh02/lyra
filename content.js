@@ -323,6 +323,20 @@ function setValues() {
             if (bgContainer) bgContainer.classList.remove('hide');
         }
     }
+function updateBgAnimationState() {
+    if (!pipWindow || pipWindow.closed) return;
+    const root = pipWindow.document.getElementById('mini-player-root');
+    if (!root) return;
+    const bgLayers = root.querySelectorAll('.ambient-bg .bg-layer');
+    bgLayers.forEach(layer => {
+        if (bgSpeedFactor <= 0 || !isPlaying) {
+            layer.style.animationPlayState = 'paused';
+        } else {
+            layer.style.animationPlayState = 'running';
+        }
+    });
+}
+
     if (isPlaying) {
         pipWindow.document.getElementById('play').classList.add('hide');
         pipWindow.document.getElementById('pause').classList.remove('hide');
@@ -330,6 +344,7 @@ function setValues() {
         pipWindow.document.getElementById('play').classList.remove('hide');
         pipWindow.document.getElementById('pause').classList.add('hide');
     }
+    updateBgAnimationState();
 
     if (!isDraggingProgress) {
         if (currentSongInfo.duration > 0) {
@@ -719,7 +734,8 @@ async function setup() {
         });
     }
 
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    const settingsStorage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+    if (settingsStorage) {
         const loadCustomControls = (resultControls) => {
             if (resultControls && Array.isArray(resultControls)) {
                 customControlsPriority = [null, null, null, null, null, null, null];
@@ -756,7 +772,7 @@ async function setup() {
             return isNaN(num) ? 1.5 : Math.max(0.0, Math.min(3.0, num));
         };
 
-        chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
+        const applySettingsFromObj = (result) => {
             loadCustomControls(result?.customControls);
             if (result?.bgBrightness !== undefined) bgBrightnessVal = clampBrightness(result.bgBrightness);
             if (result?.bgBlur !== undefined) bgBlurVal = clampBlur(result.bgBlur);
@@ -766,11 +782,21 @@ async function setup() {
             if (pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
                 updateCoverSizeFn();
             }
+        };
+
+        settingsStorage.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
+            if ((!result || Object.keys(result).length === 0) && chrome.storage.local && settingsStorage !== chrome.storage.local) {
+                chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (localRes) => {
+                    applySettingsFromObj(localRes);
+                });
+            } else {
+                applySettingsFromObj(result);
+            }
         });
 
         if (chrome.storage.onChanged) {
             chrome.storage.onChanged.addListener((changes, areaName) => {
-                if (areaName === 'local') {
+                if (areaName === 'sync' || areaName === 'local') {
                     if (changes.customControls) {
                         loadCustomControls(changes.customControls.newValue);
                     }
@@ -1808,9 +1834,16 @@ function setAutoResizingLock(ms = 1000) {
 
 function getSavedPipSize() {
     return new Promise((resolve) => {
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['pipWidth', 'pipHeight'], (res) => {
-                resolve(res || {});
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        if (storage) {
+            storage.get(['pipWidth', 'pipHeight'], (res) => {
+                if ((!res || Object.keys(res).length === 0) && chrome.storage.local && storage !== chrome.storage.local) {
+                    chrome.storage.local.get(['pipWidth', 'pipHeight'], (localRes) => {
+                        resolve(localRes || {});
+                    });
+                } else {
+                    resolve(res || {});
+                }
             });
         } else {
             try {
@@ -1842,8 +1875,9 @@ function savePipSize() {
         lastSavedH = h;
 
         const sizeData = { pipWidth: baseUserWidth, pipHeight: baseUserHeight };
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.set(sizeData);
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        if (storage) {
+            storage.set(sizeData);
         }
         try {
             localStorage.setItem('ytm_pip_size', JSON.stringify(sizeData));
@@ -1928,6 +1962,14 @@ document.addEventListener('request-pip-window', async (event) => {
             await setup();
             setValues();
 
+            const SLOT_PRIORITY_RANK = [6, 4, 1, 2, 3, 5, 7];
+            const BTN_WIDTH = 28;
+            const COMPACT_COVER_GAP = 8;
+            const COMPACT_PADDING_OFFSET = 12;
+            const NORMAL_PADDING_OFFSET = 16;
+            const LYRICS_PADDING_OFFSET = 20;
+            const LYRICS_MIN_LAYOUT_WIDTH = 350;
+
             let isResizing = false;
             function updateCoverSize() {
                 if (!pipWindow || pipWindow.closed) return;
@@ -1980,7 +2022,7 @@ document.addEventListener('request-pip-window', async (event) => {
 
                         layer.style.filter = layerFilter;
 
-                        if (bgSpeedFactor <= 0) {
+                        if (bgSpeedFactor <= 0 || !isPlaying) {
                             layer.style.animationPlayState = 'paused';
                         } else {
                             layer.style.animationPlayState = 'running';
@@ -2067,17 +2109,18 @@ document.addEventListener('request-pip-window', async (event) => {
 
                 const controlsContainer = root.querySelector('.controls');
                 if (controlsContainer) {
-                    const parentW = controlsContainer.parentElement ? controlsContainer.parentElement.clientWidth : 0;
-                    const rawW = controlsContainer.clientWidth || controlsContainer.offsetWidth || w;
-                    let containerWidth = parentW > 0 ? Math.min(rawW, parentW) : rawW;
+                    let containerWidth;
 
-                    if (isLyricsViewOpen && w > 350) {
-                        containerWidth = Math.floor(w * 0.45) - 20;
+                    if (h < 100) {
+                        const coverSide = Math.max(0, h - 8);
+                        containerWidth = Math.max(0, w - coverSide - COMPACT_COVER_GAP - COMPACT_PADDING_OFFSET);
+                    } else {
+                        containerWidth = Math.max(0, w - NORMAL_PADDING_OFFSET);
                     }
 
-                    const optionalBtnWidth = 32;
-
-                    const slotPriorityRank = [6, 4, 1, 2, 3, 5, 7];
+                    if (isLyricsViewOpen && w > LYRICS_MIN_LAYOUT_WIDTH) {
+                        containerWidth = Math.floor(w * 0.45) - LYRICS_PADDING_OFFSET;
+                    }
 
                     const activeSlots = [];
                     customControlsPriority.forEach((btnId, slotIdx) => {
@@ -2085,12 +2128,12 @@ document.addEventListener('request-pip-window', async (event) => {
                             activeSlots.push({
                                 btnId: btnId,
                                 slotIdx: slotIdx,
-                                rank: slotPriorityRank[slotIdx] || 99
+                                rank: SLOT_PRIORITY_RANK[slotIdx] || 99
                             });
                         }
                     });
 
-                    let allowedOptionalCount = Math.floor(containerWidth / optionalBtnWidth);
+                    let allowedOptionalCount = Math.floor(containerWidth / BTN_WIDTH);
                     allowedOptionalCount = Math.max(1, Math.min(allowedOptionalCount, activeSlots.length, 12));
 
                     const sortedByPriority = [...activeSlots].sort((a, b) => a.rank - b.rank);
@@ -2210,6 +2253,8 @@ document.addEventListener('request-pip-window', async (event) => {
                 videoElement.addEventListener('play', () => {
                     lastSyncedTime = videoElement.currentTime;
                     lastSyncTimestamp = performance.now();
+                    isPlaying = true;
+                    updateBgAnimationState();
                     extractSongInfo().then(() => {
                         if (pipWindow && !pipWindow.closed) updatePipContent();
                     });
@@ -2219,7 +2264,10 @@ document.addEventListener('request-pip-window', async (event) => {
                 });
 
                 videoElement.addEventListener('pause', () => {
+                    isPlaying = false;
+                    updateBgAnimationState();
                     stopLyricsAnimLoop();
+                    if (pipWindow && !pipWindow.closed) setValues();
                 });
 
                 videoElement.addEventListener('volumechange', () => {
