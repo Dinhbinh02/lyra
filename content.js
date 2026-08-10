@@ -259,8 +259,15 @@ function updatePipContent() {
 }
 
 function setValues() {
-    titleHtml.textContent = currentSongInfo.title == null || currentSongInfo.title === "" ? "Lyra Player" : currentSongInfo.title;
-    artistHtml.textContent = currentSongInfo.artist == null || currentSongInfo.artist.trim().replace(/(\r\n|\n|\r)/gm, "") === "" ? "Select a song to start" : currentSongInfo.artist;
+    const newTitle = currentSongInfo.title == null || currentSongInfo.title === "" ? "Lyra Player" : currentSongInfo.title;
+    const newArtist = currentSongInfo.artist == null || currentSongInfo.artist.trim().replace(/(\r\n|\n|\r)/gm, "") === "" ? "Select a song to start" : currentSongInfo.artist;
+
+    if (titleHtml && titleHtml.textContent !== newTitle) {
+        titleHtml.textContent = newTitle;
+    }
+    if (artistHtml && artistHtml.textContent !== newArtist) {
+        artistHtml.textContent = newArtist;
+    }
 
     const fastUrl = currentSongInfo.fastUrl || currentSongInfo.coverUrl;
     if (fastUrl) {
@@ -2157,7 +2164,7 @@ document.addEventListener('request-pip-window', async (event) => {
                 }
                 await extractSongInfo();
                 setValues();
-            }, 250);
+            }, 1000);
 
             const videoElement = document.querySelector('video');
             if (videoElement) {
@@ -2206,6 +2213,13 @@ document.addEventListener('request-pip-window', async (event) => {
                     extractSongInfo().then(() => {
                         if (pipWindow && !pipWindow.closed) updatePipContent();
                     });
+                    if (isLyricsViewOpen) {
+                        startLyricsAnimLoop();
+                    }
+                });
+
+                videoElement.addEventListener('pause', () => {
+                    stopLyricsAnimLoop();
                 });
 
                 videoElement.addEventListener('volumechange', () => {
@@ -3285,11 +3299,15 @@ async function renderLyricsList() {
 let animFrameId = null;
 let lastFrameTime = 0;
 
-function startLyricsAnimLoop() {
+function stopLyricsAnimLoop() {
     if (animFrameId && pipWindow) {
         pipWindow.cancelAnimationFrame(animFrameId);
         animFrameId = null;
     }
+}
+
+function startLyricsAnimLoop() {
+    stopLyricsAnimLoop();
     lastFrameTime = performance.now();
 
     const video = document.querySelector('video');
@@ -3299,32 +3317,35 @@ function startLyricsAnimLoop() {
     }
 
     function loop() {
-        if (!pipWindow || pipWindow.closed) return;
+        if (!pipWindow || pipWindow.closed) {
+            animFrameId = null;
+            return;
+        }
+
+        const video = document.querySelector('video');
+        // Only run animation frame if lyrics view is open and video is playing
+        if (!isLyricsViewOpen || !video || video.paused) {
+            animFrameId = null;
+            return;
+        }
+
         const now = performance.now();
         const deltaTime = Math.min(0.1, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
 
-        const video = document.querySelector('video');
-        if (video && isLyricsViewOpen) {
-            let currentSongTime = video.currentTime;
-            if (!video.paused) {
-                const timeSinceSync = (now - lastSyncTimestamp) / 1000;
-                currentSongTime = lastSyncedTime + timeSinceSync;
-                if (Math.abs(currentSongTime - video.currentTime) > 0.5) {
-                    currentSongTime = video.currentTime;
-                    lastSyncedTime = video.currentTime;
-                    lastSyncTimestamp = now;
-                }
-            } else {
-                lastSyncedTime = video.currentTime;
-                lastSyncTimestamp = now;
-            }
-
-            updateActiveLyricLine(currentSongTime, deltaTime);
+        let currentSongTime = video.currentTime;
+        const timeSinceSync = (now - lastSyncTimestamp) / 1000;
+        currentSongTime = lastSyncedTime + timeSinceSync;
+        if (Math.abs(currentSongTime - video.currentTime) > 0.5) {
+            currentSongTime = video.currentTime;
+            lastSyncedTime = video.currentTime;
+            lastSyncTimestamp = now;
         }
+
+        updateActiveLyricLine(currentSongTime, deltaTime);
         animFrameId = pipWindow.requestAnimationFrame(loop);
     }
-    if (pipWindow) loop();
+    if (pipWindow && isLyricsViewOpen) loop();
 }
 
 function updateActiveLyricLine(currentTime, deltaTime) {
