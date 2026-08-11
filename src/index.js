@@ -1,5 +1,3 @@
-
-
 (function injectPromoBlockerCSS() {
     const css = `
 
@@ -265,8 +263,14 @@ function setValues() {
     if (titleHtml && titleHtml.textContent !== newTitle) {
         titleHtml.textContent = newTitle;
     }
-    if (artistHtml && artistHtml.textContent !== newArtist) {
-        artistHtml.textContent = newArtist;
+    if (artistHtml) {
+        if (currentSongInfo.artistHtml) {
+            if (artistHtml.innerHTML !== currentSongInfo.artistHtml) {
+                artistHtml.innerHTML = currentSongInfo.artistHtml;
+            }
+        } else if (artistHtml.textContent !== newArtist) {
+            artistHtml.textContent = newArtist;
+        }
     }
 
     const fastUrl = currentSongInfo.fastUrl || currentSongInfo.coverUrl;
@@ -576,6 +580,45 @@ async function setup() {
 
     titleHtml = titleHtml == null ? pipWindow.document.getElementById('title') : titleHtml;
     artistHtml = artistHtml == null ? pipWindow.document.getElementById('artist') : artistHtml;
+    if (artistHtml && !artistHtml._clickAttached) {
+        artistHtml._clickAttached = true;
+        artistHtml.addEventListener('click', (e) => {
+            const anchor = e.target.closest('a');
+            if (anchor) {
+                e.preventDefault();
+                const href = anchor.getAttribute('href');
+                if (href) {
+                    let mainPageLink = null;
+                    try {
+                        mainPageLink = document.querySelector(`.subtitle.style-scope.ytmusic-player-bar a[href="${CSS.escape(href)}"]`) ||
+                                       document.querySelector(`a[href="${CSS.escape(href)}"]`);
+                    } catch (err) { }
+
+                    if (mainPageLink) {
+                        mainPageLink.click();
+                    } else {
+                        const app = document.querySelector('ytmusic-app');
+                        if (app) {
+                            const cleanId = href.replace(/^(channel\/|browse\/)/, '');
+                            app.dispatchEvent(new CustomEvent('yt-navigate', {
+                                bubbles: true,
+                                composed: true,
+                                detail: {
+                                    endpoint: {
+                                        browseEndpoint: {
+                                            browseId: cleanId
+                                        }
+                                    }
+                                }
+                            }));
+                        } else {
+                            window.location.href = href.startsWith('http') ? href : 'https://music.youtube.com/' + href.replace(/^\//, '');
+                        }
+                    }
+                }
+            }
+        });
+    }
     coverHtml = coverHtml == null ? pipWindow.document.getElementById('cover') : coverHtml;
     bgCoverHtml = bgCoverHtml == null ? pipWindow.document.getElementById('bg-cover') : bgCoverHtml;
     placeHolderHtml = placeHolderHtml == null ? pipWindow.document.getElementById('noCover') : placeHolderHtml;
@@ -1113,9 +1156,7 @@ async function setup() {
         if (!playlistContainer) return;
         
         const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !isPlaylistViewOpen;
-        if (typeof isAddMode !== 'undefined') {
-            isAddToPlaylistMode = isAddMode;
-        }
+        isAddToPlaylistMode = isAddMode === true;
         isPlaylistViewOpen = shouldOpen;
         if (isPlaylistViewOpen) {
             closeAllPanelsExcept('playlist');
@@ -1237,185 +1278,206 @@ async function setup() {
         if (headerTitle) {
             headerTitle.textContent = isAddToPlaylistMode ? 'Save to Playlist' : 'Playlists';
         }
-        if (statusEl) statusEl.classList.add('hide');
 
-        const playlists = await fetchPlaylists();
-        playlistList.innerHTML = '';
+        const buildPlaylistDom = (playlists) => {
+            playlistList.innerHTML = '';
 
-        if (!playlists || !playlists.length) {
-            if (statusEl) {
-                statusEl.textContent = 'No playlists found';
-                statusEl.classList.remove('hide');
+            if (!playlists || !playlists.length) {
+                if (statusEl) {
+                    statusEl.textContent = 'No playlists found';
+                    statusEl.classList.remove('hide');
+                }
+                return;
             }
-            return;
-        }
-        if (statusEl) statusEl.classList.add('hide');
+            if (statusEl) statusEl.classList.add('hide');
 
-        playlists.forEach((pl) => {
-            const div = pipWindow.document.createElement('div');
-            div.className = 'panel-item';
-            const cleanPlId = (pl.id || '').replace(/^VL/, '');
-            const isLikedPlaylist = Boolean(pl.id && (pl.id.includes('LM') || pl.id === 'VLLM' || pl.id === 'LM'));
+            playlists.forEach((pl) => {
+                const div = pipWindow.document.createElement('div');
+                div.className = 'panel-item';
+                const cleanPlId = (pl.id || '').replace(/^VL/, '');
+                const isLikedPlaylist = Boolean(pl.id && (pl.id.includes('LM') || pl.id === 'VLLM' || pl.id === 'LM'));
 
-            const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
-            const isCurrentlyLiked = isLikedPlaylist && likeRenderer && likeRenderer.getAttribute('like-status') === 'LIKE';
+                const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
+                const isCurrentlyLiked = isLikedPlaylist && likeRenderer && likeRenderer.getAttribute('like-status') === 'LIKE';
 
-            const isNowPlaying = !isAddToPlaylistMode && activePlayingPlaylistId && (activePlayingPlaylistId === cleanPlId || activePlayingPlaylistId === pl.id);
-            const isPlayActive = isNowPlaying && activePlayingMode === 'play';
-            const isShuffleActive = isNowPlaying && activePlayingMode === 'shuffle';
+                const isNowPlaying = !isAddToPlaylistMode && activePlayingPlaylistId && (activePlayingPlaylistId === cleanPlId || activePlayingPlaylistId === pl.id);
+                const isPlayActive = isNowPlaying && activePlayingMode === 'play';
+                const isShuffleActive = isNowPlaying && activePlayingMode === 'shuffle';
 
-            if (isNowPlaying) {
-                div.classList.add('selected');
-            }
+                if (isNowPlaying) {
+                    div.classList.add('selected');
+                }
 
-            div.innerHTML = `
-                <div class="panel-item-thumb-wrapper">
-                    <img class="panel-item-thumb" src="${pl.thumb || 'icons/icon48.png'}" alt="thumb" />
-                    ${isAddToPlaylistMode ? `<div class="panel-item-plus-overlay"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>` : ''}
-                </div>
-                <div class="panel-item-info">
-                    <span class="panel-item-title">${pl.title}</span>
-                    ${isAddToPlaylistMode
-                        ? (isCurrentlyLiked
-                            ? `<span class="panel-item-status-tag duplicate" style="margin-top: 2px;">Liked</span>`
-                            : `<span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>`)
-                        : (isNowPlaying
-                            ? `<span class="panel-item-status-tag added" style="margin-top: 2px;">Now playing</span>`
-                            : `<span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>`)
-                    }
-                </div>
-                ${!isAddToPlaylistMode ? `
-                    <div class="panel-item-actions">
-                        <button class="panel-action-btn shuffle-action-btn ${isShuffleActive ? 'active' : ''}" title="Shuffle playlist">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
-                            </svg>
-                        </button>
-                        <button class="panel-action-btn play-action-btn ${isPlayActive ? 'active' : ''}" title="Play playlist">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                                <polygon points="8,5 19,12 8,19"></polygon>
-                            </svg>
-                        </button>
+                div.innerHTML = `
+                    <div class="panel-item-thumb-wrapper">
+                        <img class="panel-item-thumb" src="${pl.thumb || 'icons/icon48.png'}" alt="thumb" />
+                        ${isAddToPlaylistMode ? `<div class="panel-item-plus-overlay"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>` : ''}
                     </div>
-                ` : ''}
-            `;
+                    <div class="panel-item-info">
+                        <span class="panel-item-title">${pl.title}</span>
+                        ${isAddToPlaylistMode
+                            ? (isCurrentlyLiked
+                                ? `<span class="panel-item-status-tag duplicate" style="margin-top: 2px;">Liked</span>`
+                                : `<span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>`)
+                            : (isNowPlaying
+                                ? `<span class="panel-item-status-tag added" style="margin-top: 2px;">Now playing</span>`
+                                : `<span class="panel-item-artist">${pl.subtitle || 'Playlist'}</span>`)
+                        }
+                    </div>
+                    ${!isAddToPlaylistMode ? `
+                        <div class="panel-item-actions">
+                            <button class="panel-action-btn shuffle-action-btn ${isShuffleActive ? 'active' : ''}" title="Shuffle playlist">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                                </svg>
+                            </button>
+                            <button class="panel-action-btn play-action-btn ${isPlayActive ? 'active' : ''}" title="Play playlist">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                    <polygon points="8,5 19,12 8,19"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                    ` : ''}
+                `;
 
-            if (isAddToPlaylistMode) {
-                div.addEventListener('click', async () => {
-                    const infoContainer = div.querySelector('.panel-item-info');
-                    const artistSpan = div.querySelector('.panel-item-artist');
+                if (isAddToPlaylistMode) {
+                    div.addEventListener('click', async () => {
+                        const infoContainer = div.querySelector('.panel-item-info');
+                        const artistSpan = div.querySelector('.panel-item-artist');
 
-                    div.classList.add('loading');
-                    
-                    let spinner = div.querySelector('.panel-item-spinner');
-                    if (!spinner) {
-                        spinner = pipWindow.document.createElement('div');
-                        spinner.className = 'panel-item-spinner';
-                        div.appendChild(spinner);
-                    }
-
-                    let res = "error";
-
-                    if (isLikedPlaylist) {
-                        const ytLikeBtn = document.querySelector('ytmusic-like-button-renderer[id="like-button-renderer"] #button-shape-like button') || document.querySelector('#button-shape-like button');
-                        const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
-                        const currentStatus = likeRenderer ? likeRenderer.getAttribute('like-status') : 'INDIFFERENT';
+                        div.classList.add('loading');
                         
-                        if (ytLikeBtn) {
-                            ytLikeBtn.click();
-                            triggerFastRefresh();
+                        let spinner = div.querySelector('.panel-item-spinner');
+                        if (!spinner) {
+                            spinner = pipWindow.document.createElement('div');
+                            spinner.className = 'panel-item-spinner';
+                            div.appendChild(spinner);
                         }
-                        
-                        if (currentStatus === 'LIKE') {
-                            res = "unliked";
-                        } else {
-                            res = "liked";
-                        }
-                        await new Promise(r => setTimeout(r, 150));
-                    } else {
-                        const videoId = getCurrentVideoId();
-                        if (videoId) {
-                            res = await addToPlaylist(pl.id, videoId);
-                        }
-                    }
 
-                    div.classList.remove('loading');
-                    if (spinner) spinner.remove();
+                        let res = "error";
 
-                    let statusTag = div.querySelector('.panel-item-status-tag');
-                    if (!statusTag) {
-                        statusTag = pipWindow.document.createElement('span');
-                        statusTag.className = 'panel-item-status-tag';
-                        if (artistSpan) {
-                            artistSpan.style.display = 'none';
-                        }
-                        infoContainer.appendChild(statusTag);
-                    }
-
-                    if (res === 'liked') {
-                        statusTag.className = 'panel-item-status-tag added';
-                        statusTag.textContent = 'Liked';
-                    } else if (res === 'unliked') {
-                        statusTag.className = 'panel-item-status-tag duplicate';
-                        statusTag.textContent = 'Unliked';
-                    } else if (res === 'added') {
-                        statusTag.className = 'panel-item-status-tag added';
-                        statusTag.textContent = 'Added to playlist';
-                    } else if (res === 'duplicate') {
-                        statusTag.className = 'panel-item-status-tag duplicate';
-                        statusTag.textContent = 'Already in playlist';
-                    } else {
-                        statusTag.className = 'panel-item-status-tag error';
-                        statusTag.textContent = 'Cannot add';
-                    }
-                });
-            } else {
-                
-                const playBtn = div.querySelector('.play-action-btn');
-                const shuffleBtn = div.querySelector('.shuffle-action-btn');
-
-                const playPlaylist = (isShuffle = false) => {
-                    activePlayingPlaylistId = cleanPlId || pl.id;
-                    activePlayingMode = isShuffle ? 'shuffle' : 'play';
-
-                    renderPlaylistsList();
-
-                    const app = document.querySelector('ytmusic-app');
-                    if (app) {
-                        const endpoint = {
-                            watchPlaylistEndpoint: {
-                                playlistId: cleanPlId,
-                                ...(isShuffle ? { params: 'wAEB' } : {})
+                        if (isLikedPlaylist) {
+                            const ytLikeBtn = document.querySelector('ytmusic-like-button-renderer[id="like-button-renderer"] #button-shape-like button') || document.querySelector('#button-shape-like button');
+                            const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
+                            const currentStatus = likeRenderer ? likeRenderer.getAttribute('like-status') : 'INDIFFERENT';
+                            
+                            if (ytLikeBtn) {
+                                ytLikeBtn.click();
+                                triggerFastRefresh();
                             }
-                        };
-                        app.dispatchEvent(new CustomEvent('yt-navigate', {
-                            bubbles: true,
-                            composed: true,
-                            detail: { endpoint }
-                        }));
-                    }
-                };
+                            
+                            if (currentStatus === 'LIKE') {
+                                res = "unliked";
+                            } else {
+                                res = "liked";
+                            }
+                            await new Promise(r => setTimeout(r, 150));
+                        } else {
+                            const videoId = getCurrentVideoId();
+                            if (videoId) {
+                                res = await addToPlaylist(pl.id, videoId);
+                            }
+                        }
 
-                if (playBtn) {
-                    playBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
+                        div.classList.remove('loading');
+                        if (spinner) spinner.remove();
+
+                        let statusTag = div.querySelector('.panel-item-status-tag');
+                        if (!statusTag) {
+                            statusTag = pipWindow.document.createElement('span');
+                            statusTag.className = 'panel-item-status-tag';
+                            if (artistSpan) {
+                                artistSpan.style.display = 'none';
+                            }
+                            infoContainer.appendChild(statusTag);
+                        }
+
+                        if (res === 'liked') {
+                            statusTag.className = 'panel-item-status-tag added';
+                            statusTag.textContent = 'Liked';
+                        } else if (res === 'unliked') {
+                            statusTag.className = 'panel-item-status-tag duplicate';
+                            statusTag.textContent = 'Unliked';
+                        } else if (res === 'added') {
+                            statusTag.className = 'panel-item-status-tag added';
+                            statusTag.textContent = 'Added to playlist';
+                        } else if (res === 'duplicate') {
+                            statusTag.className = 'panel-item-status-tag duplicate';
+                            statusTag.textContent = 'Already in playlist';
+                        } else {
+                            statusTag.className = 'panel-item-status-tag error';
+                            statusTag.textContent = 'Cannot add';
+                        }
+                    });
+                } else {
+                    const playBtn = div.querySelector('.play-action-btn');
+                    const shuffleBtn = div.querySelector('.shuffle-action-btn');
+
+                    const playPlaylist = (isShuffle = false) => {
+                        activePlayingPlaylistId = cleanPlId || pl.id;
+                        activePlayingMode = isShuffle ? 'shuffle' : 'play';
+
+                        renderPlaylistsList();
+
+                        const app = document.querySelector('ytmusic-app');
+                        if (app) {
+                            const endpoint = {
+                                watchPlaylistEndpoint: {
+                                    playlistId: cleanPlId,
+                                    ...(isShuffle ? { params: 'wAEB' } : {})
+                                }
+                            };
+                            app.dispatchEvent(new CustomEvent('yt-navigate', {
+                                bubbles: true,
+                                composed: true,
+                                detail: { endpoint }
+                            }));
+                        }
+                    };
+
+                    if (playBtn) {
+                        playBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            playPlaylist(false);
+                        });
+                    }
+                    if (shuffleBtn) {
+                        shuffleBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            playPlaylist(true);
+                        });
+                    }
+
+                    div.addEventListener('click', () => {
                         playPlaylist(false);
                     });
                 }
 
-                if (shuffleBtn) {
-                    shuffleBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        playPlaylist(true);
-                    });
-                }
+                playlistList.appendChild(div);
+            });
+        };
 
-                div.addEventListener('click', () => {
-                    playPlaylist(false);
-                });
+        let hasRenderedCache = false;
+        if (cachedPlaylists && Array.isArray(cachedPlaylists) && cachedPlaylists.length > 0) {
+            buildPlaylistDom(cachedPlaylists);
+            hasRenderedCache = true;
+        } else {
+            playlistList.innerHTML = '';
+            if (statusEl) {
+                statusEl.textContent = 'Loading playlists...';
+                statusEl.classList.remove('hide');
             }
-            playlistList.appendChild(div);
-        });
+        }
+
+        const freshPlaylists = await fetchPlaylists();
+        if (freshPlaylists && freshPlaylists.length > 0) {
+            buildPlaylistDom(freshPlaylists);
+        } else if (!hasRenderedCache) {
+            if (statusEl) {
+                statusEl.textContent = 'No playlists found';
+                statusEl.classList.remove('hide');
+            }
+        }
     }
 
     const progressContainer = pipWindow.document.querySelector('.progress-container');
@@ -1620,6 +1682,11 @@ async function extractSongInfo() {
 
     const artistElement = document.querySelector('.subtitle.style-scope.ytmusic-player-bar');
     currentSongInfo.artist = artistElement ? artistElement.textContent : 'Unknown Artist';
+    if (artistElement) {
+        currentSongInfo.artistHtml = artistElement.innerHTML;
+    } else {
+        currentSongInfo.artistHtml = null;
+    }
 
     let rawCoverUrl = null;
     if (navigator.mediaSession && navigator.mediaSession.metadata && navigator.mediaSession.metadata.artwork) {

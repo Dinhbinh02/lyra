@@ -1,0 +1,9 @@
+export const SLOT_PRIORITY_RANK = [6, 4, 1, 2, 3, 5, 7];
+export const BTN_WIDTH = 28;
+export const COMPACT_COVER_GAP = 8;
+export const COMPACT_PADDING_OFFSET = 12;
+export const NORMAL_PADDING_OFFSET = 16;
+export const LYRICS_PADDING_OFFSET = 20;
+export const LYRICS_MIN_LAYOUT_WIDTH = 350;
+export const DEFAULT_BUTTONS = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
+export const LYRICS_CACHE_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000;

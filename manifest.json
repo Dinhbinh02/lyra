@@ -39,7 +39,7 @@
             "*://music.youtube.com/*"
          ],
          "js": [
-            "content.js"
+            "dist/content.js"
          ],
          "run_at": "document_start"
       }

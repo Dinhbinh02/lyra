@@ -43,18 +43,27 @@ async function build() {
     console.log('Bundling & minifying JS/CSS files with esbuild...');
     try {
         await esbuild.build({
+            entryPoints: {
+                'content': 'src/index.js',
+                'background': 'background.js',
+                'miniplayer': 'miniplayer.js',
+                'popup': 'popup.js'
+            },
+            outdir: 'dist',
+            bundle: true,
+            minify: true,
+            sourcemap: false,
+            target: ['chrome100']
+        });
+
+        await esbuild.build({
             entryPoints: [
-                'background.js',
-                'content.js',
-                'miniplayer.js',
-                'popup.js',
                 'miniplayer.css',
                 'popup.css'
             ],
             outdir: 'dist',
             bundle: true,
             minify: true,
-            sourcemap: false,
             target: ['chrome100']
         });
         console.log('Build completed successfully!');
@@ -63,7 +72,11 @@ async function build() {
         if (fs.existsSync('lyra.zip')) {
             fs.unlinkSync('lyra.zip');
         }
-        execSync('zip -r ../lyra.zip *', { cwd: 'dist' });
+        try {
+            execSync('zip -r ../lyra.zip *', { cwd: 'dist' });
+        } catch (e) {
+            execSync('powershell -Command "Compress-Archive -Path dist\\* -DestinationPath lyra.zip -Force"');
+        }
         console.log('Zip file "lyra.zip" created successfully at project root!');
     } catch (err) {
         console.error('Build failed:', err);

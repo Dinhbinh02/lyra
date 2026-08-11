@@ -249,6 +249,17 @@ body,
     box-sizing: border-box;
 }
 
+.song-artist a {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.song-artist a:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
 .middle-section {
     display: flex;
     align-items: center;
