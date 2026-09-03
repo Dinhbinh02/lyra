@@ -174,6 +174,14 @@ export function resetYtmBrowseLyrics() {
 
 export function getLyricsFromDom() {
     try {
+        const lyricsTabBtn = document.querySelector('tp-yt-paper-tab[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"], tp-yt-paper-tab.tab-header:nth-child(2)');
+        if (lyricsTabBtn) {
+            const isDisabled = lyricsTabBtn.hasAttribute('disabled') || lyricsTabBtn.getAttribute('aria-disabled') === 'true' || lyricsTabBtn.disabled;
+            if (isDisabled) {
+                return null;
+            }
+        }
+
         if (ytmBrowseLyrics && ytmBrowseLyrics.length > 0) {
             if (/wikipedia\.org|CC-BY-SA|creative\s*commons/i.test(ytmBrowseLyrics)) {
                 ytmBrowseLyrics = null;
@@ -182,7 +190,7 @@ export function getLyricsFromDom() {
             return ytmBrowseLyrics;
         }
 
-        const lyricsTab = document.querySelector('ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"], #tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"], tp-yt-paper-tab[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]');
+        const lyricsTab = document.querySelector('ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"], #tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]');
         const container = lyricsTab ? (lyricsTab.closest('ytmusic-tab-renderer') || lyricsTab) : null;
         if (!container) return null;
 
@@ -454,7 +462,7 @@ export async function fetchLyricsPipeline({ title, artist, durationSec = 0, vide
             if (!isExact) return false;
             if (durationSec > 0 && item.duration) {
                 const diff = Math.abs(item.duration - durationSec);
-                if (diff > 8) return false;
+                if (diff > 3) return false;
             }
             return true;
         };
@@ -507,7 +515,7 @@ export async function fetchLyricsPipeline({ title, artist, durationSec = 0, vide
             if (!isExact && !titleCandidates.some(t => isTrackTitleMatching(data.trackName, t, false))) return false;
             if (durationSec > 0 && data.duration) {
                 const diff = Math.abs(data.duration - durationSec);
-                const maxDiff = isExact ? 10 : (data.syncedLyrics ? 4 : 8);
+                const maxDiff = data.syncedLyrics ? 3 : 6;
                 if (diff > maxDiff) return false;
             }
             return true;
@@ -522,10 +530,10 @@ export async function fetchLyricsPipeline({ title, artist, durationSec = 0, vide
                 if (durationSec > 0) {
                     const diffA = a.duration ? Math.abs(a.duration - durationSec) : 999;
                     const diffB = b.duration ? Math.abs(b.duration - durationSec) : 999;
-                    if (diffA <= 3) scoreA += 50;
-                    else if (diffA <= 8) scoreA += 25;
-                    if (diffB <= 3) scoreB += 50;
-                    else if (diffB <= 8) scoreB += 25;
+                    if (diffA <= 1) scoreA += 60;
+                    else if (diffA <= 3) scoreA += 30;
+                    if (diffB <= 1) scoreB += 60;
+                    else if (diffB <= 3) scoreB += 30;
                 }
                 return scoreB - scoreA;
             });

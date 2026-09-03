@@ -1,6 +1,6 @@
 export async function getSavedPipSize() {
     return new Promise((resolve) => {
-        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
         if (storage) {
             storage.get(['pipWidth', 'pipHeight'], (res) => {
                 resolve({
@@ -19,7 +19,7 @@ export function savePipSize(pipWindow, isAutoResizingPip = false) {
     const w = Math.round(pipWindow.outerWidth || pipWindow.innerWidth || 0);
     const h = Math.round(pipWindow.outerHeight || pipWindow.innerHeight || 0);
     if (w > 100 && h > 80) {
-        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
         if (storage) {
             storage.set({ pipWidth: w, pipHeight: h });
         }

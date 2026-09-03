@@ -437,10 +437,8 @@ let openedFromSearch = false;
 let isMuted = false;
 const defaultButtons = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
 let customControlsPriority = [...defaultButtons];
-let bgBrightnessVal = 120;
-let bgBlurVal = 90;
-let bgSpeedFactor = 1.5;
-let bgTypeVal = 'dynamic';
+let bgTypeVal = 'gentle';
+let bgBrightnessVal = 100;
 let updateCoverSizeFn = null;
 
 function updatePipContent() {
@@ -637,26 +635,53 @@ function setValues() {
     syncQueueObserverState();
 }
 
+function computeSongMoodSpeed() {
+    if (bgTypeVal === 'lively') return 1.3;
+    if (bgTypeVal === 'gentle') return 0.9;
+    return 0;
+}
+
 function applyBgTypeToDom() {
     if (!pipWindow || pipWindow.closed) return;
     const root = pipWindow.document.getElementById('mini-player-root');
     if (root) {
         root.setAttribute('data-bg-type', bgTypeVal);
     }
+    applyBrightnessToDom(bgBrightnessVal);
     updateBgAnimationState();
+}
+
+function applyBrightnessToDom(val) {
+    if (!pipWindow || pipWindow.closed) return;
+    const root = pipWindow.document.getElementById('mini-player-root');
+    if (!root) return;
+    const factor = (val / 100);
+    root.style.setProperty('--bg-brightness', factor.toFixed(2));
+    const ambientOverlay = root.querySelector('.ambient-overlay');
+    if (ambientOverlay) {
+        if (val < 100) {
+            const overlayDarkness = 0.32 + (1 - factor) * 0.45;
+            ambientOverlay.style.background = `rgba(0, 0, 0, ${overlayDarkness.toFixed(2)})`;
+        } else if (val > 100) {
+            const overlayDarkness = Math.max(0, 0.32 - (factor - 1) * 0.32);
+            ambientOverlay.style.background = `rgba(0, 0, 0, ${overlayDarkness.toFixed(2)})`;
+        } else {
+            ambientOverlay.style.background = '';
+        }
+    }
 }
 
 function updateBgAnimationState() {
     if (!pipWindow || pipWindow.closed) return;
     const root = pipWindow.document.getElementById('mini-player-root');
     if (!root) return;
+    const effectiveSpeed = computeSongMoodSpeed();
+    const baseDuration = effectiveSpeed > 0 ? (28 / effectiveSpeed).toFixed(2) : 28;
+    root.style.setProperty('--bg-duration-base', `${baseDuration}s`);
     const bgLayers = root.querySelectorAll('.ambient-bg .bg-layer');
+    const shouldPause = (bgTypeVal === 'static' || bgTypeVal === 'oled' || effectiveSpeed <= 0 || !isPlaying);
     bgLayers.forEach(layer => {
-        if (bgTypeVal === 'static' || bgSpeedFactor <= 0 || !isPlaying) {
-            layer.style.animationPlayState = 'paused';
-        } else {
-            layer.style.animationPlayState = 'running';
-        }
+        layer.style.animationPlayState = shouldPause ? 'paused' : 'running';
     });
 }
 
@@ -998,7 +1023,7 @@ async function setup() {
         });
     }
 
-    const settingsStorage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+    const settingsStorage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
     if (settingsStorage) {
         const loadCustomControls = (resultControls) => {
             if (resultControls && Array.isArray(resultControls) && resultControls.some(Boolean)) {
@@ -1023,25 +1048,13 @@ async function setup() {
 
         const clampBrightness = (v) => {
             const num = parseInt(v, 10);
-            return isNaN(num) ? 120 : Math.max(20, Math.min(150, num));
-        };
-
-        const clampBlur = (v) => {
-            const num = parseInt(v, 10);
-            return isNaN(num) ? 90 : Math.max(70, Math.min(150, num));
-        };
-
-        const clampSpeed = (v) => {
-            const num = parseFloat(v);
-            return isNaN(num) ? 1.5 : Math.max(0.0, Math.min(3.0, num));
+            return isNaN(num) ? 100 : Math.max(20, Math.min(150, num));
         };
 
         const applySettingsFromObj = (result) => {
             loadCustomControls(result?.customControls);
-            if (result?.bgType !== undefined) bgTypeVal = result.bgType === 'static' ? 'static' : 'dynamic';
+            bgTypeVal = result?.bgType || 'gentle';
             if (result?.bgBrightness !== undefined) bgBrightnessVal = clampBrightness(result.bgBrightness);
-            if (result?.bgBlur !== undefined) bgBlurVal = clampBlur(result.bgBlur);
-            if (result?.bgSpeed !== undefined) bgSpeedFactor = clampSpeed(result.bgSpeed);
             if (result?.lyricsMode !== undefined) currentLyricsDisplayMode = result.lyricsMode;
             applyLyricsModeToDom();
             applyBgTypeToDom();
@@ -1050,10 +1063,10 @@ async function setup() {
             }
         };
 
-        settingsStorage.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode', 'bgType'], (result) => {
-            if ((!result || Object.keys(result).length === 0) && chrome.storage.local && settingsStorage !== chrome.storage.local) {
-                chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode', 'bgType'], (localRes) => {
-                    applySettingsFromObj(localRes);
+        settingsStorage.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode'], (result) => {
+            if ((!result || Object.keys(result).length === 0) && chrome.storage.sync && settingsStorage !== chrome.storage.sync) {
+                chrome.storage.sync.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode'], (syncRes) => {
+                    applySettingsFromObj(syncRes);
                 });
             } else {
                 applySettingsFromObj(result);
@@ -1067,23 +1080,18 @@ async function setup() {
                         loadCustomControls(changes.customControls.newValue);
                     }
                     if (changes.bgType) {
-                        bgTypeVal = changes.bgType.newValue === 'static' ? 'static' : 'dynamic';
+                        bgTypeVal = changes.bgType.newValue || 'gentle';
                         applyBgTypeToDom();
                     }
                     if (changes.bgBrightness) {
                         bgBrightnessVal = clampBrightness(changes.bgBrightness.newValue);
-                    }
-                    if (changes.bgBlur) {
-                        bgBlurVal = clampBlur(changes.bgBlur.newValue);
-                    }
-                    if (changes.bgSpeed) {
-                        bgSpeedFactor = clampSpeed(changes.bgSpeed.newValue);
+                        applyBrightnessToDom(bgBrightnessVal);
                     }
                     if (changes.lyricsMode) {
                         currentLyricsDisplayMode = changes.lyricsMode.newValue || 'both';
                         applyLyricsModeToDom();
                     }
-                    if ((changes.bgType || changes.bgBrightness || changes.bgBlur || changes.bgSpeed) && pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
+                    if (changes.bgType && pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
                         updateCoverSizeFn();
                     }
                 }
@@ -2142,12 +2150,12 @@ function setAutoResizingLock(ms = 1000) {
 
 function getSavedPipSize() {
     return new Promise((resolve) => {
-        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
         if (storage) {
             storage.get(['pipWidth', 'pipHeight'], (res) => {
-                if ((!res || Object.keys(res).length === 0) && chrome.storage.local && storage !== chrome.storage.local) {
-                    chrome.storage.local.get(['pipWidth', 'pipHeight'], (localRes) => {
-                        resolve(localRes || {});
+                if ((!res || Object.keys(res).length === 0) && chrome.storage.sync && storage !== chrome.storage.sync) {
+                    chrome.storage.sync.get(['pipWidth', 'pipHeight'], (syncRes) => {
+                        resolve(syncRes || {});
                     });
                 } else {
                     resolve(res || {});
@@ -2183,7 +2191,7 @@ function savePipSize() {
         lastSavedH = h;
 
         const sizeData = { pipWidth: baseUserWidth, pipHeight: baseUserHeight };
-        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
         if (storage) {
             storage.set(sizeData);
         }
@@ -2284,60 +2292,6 @@ document.addEventListener('request-pip-window', async (event) => {
 
                 const h = root.offsetHeight;
                 const w = root.offsetWidth;
-
-                const diagonal = Math.sqrt(w * w + h * h);
-                const speedMult = bgSpeedFactor > 0 ? (1 / bgSpeedFactor) : 999;
-                const baseDuration = (diagonal * 0.07 * speedMult).toFixed(2);
-                root.style.setProperty('--bg-duration-base', `${baseDuration}s`);
-
-                const ambientBg = root.querySelector('.ambient-bg');
-                const ambientOverlay = root.querySelector('.ambient-overlay');
-                if (ambientBg) {
-                    
-                    if (bgBrightnessVal === 100) {
-                        ambientBg.style.opacity = '1.0';
-                        ambientBg.style.filter = 'none';
-                        if (ambientOverlay) ambientOverlay.style.background = '';
-                    } else if (bgBrightnessVal < 100) {
-                        ambientBg.style.opacity = (bgBrightnessVal / 100).toFixed(2);
-                        ambientBg.style.filter = 'none';
-                        if (ambientOverlay) ambientOverlay.style.background = '';
-                    } else {
-                        ambientBg.style.opacity = '1.0';
-                        ambientBg.style.filter = 'none';
-                        if (ambientOverlay) ambientOverlay.style.background = '';
-                    }
-
-                    const bgLayers = ambientBg.querySelectorAll('.bg-layer');
-                    bgLayers.forEach(layer => {
-                        
-                        let baseBlur = 45;
-                        if (layer.classList.contains('bg-center')) baseBlur = 35;
-                        else if (layer.classList.contains('bg-left') || layer.classList.contains('bg-right')) baseBlur = 30;
-
-                        const currentBlur = Math.round(baseBlur * (bgBlurVal / 100));
-
-                        let layerFilter = `blur(${currentBlur}px)`;
-                        if (layer.classList.contains('bg-base')) layerFilter += ' brightness(0.7) saturate(2.0)';
-                        else if (layer.classList.contains('bg-center')) layerFilter += ' brightness(0.8) saturate(2.2)';
-                        else layerFilter += ' brightness(0.85) saturate(2.4)';
-
-                        layer.style.filter = layerFilter;
-
-                        if (bgTypeVal === 'static' || bgSpeedFactor <= 0 || !isPlaying) {
-                            layer.style.animationPlayState = 'paused';
-                        } else {
-                            layer.style.animationPlayState = 'running';
-                            let relativeFactor = 1.0;
-                            if (layer.classList.contains('bg-center')) relativeFactor = 0.6;
-                            else if (layer.classList.contains('bg-left')) relativeFactor = 0.35;
-                            else if (layer.classList.contains('bg-right')) relativeFactor = 0.4;
-
-                            const layerDuration = (parseFloat(baseDuration) * relativeFactor).toFixed(2);
-                            layer.style.animationDuration = `${layerDuration}s`;
-                        }
-                    });
-                }
 
                 let side;
 
@@ -3035,7 +2989,7 @@ async function fetchSyncedLyrics(title, artist, forceRefetch = false) {
         }
         if (cachedLyrics.data) {
             const cachedData = cachedLyrics.data;
-            const maxAllowedDiff = 4;
+            const maxAllowedDiff = (cachedLyrics.type === 'SYNCED' || cachedData.syncedLyrics) ? 3 : 6;
             const durMatch = !durationSec || !cachedData.duration || Math.abs(cachedData.duration - durationSec) <= maxAllowedDiff;
             const artistMatch = !cachedData.artistName || isArtistMatching(cachedData.artistName, primaryArtist, artistParts, artistSection);
             if (artistMatch && durMatch) {
@@ -3069,7 +3023,8 @@ async function fetchSyncedLyrics(title, artist, forceRefetch = false) {
     if (!domLyrics) {
         const paperTabs = Array.from(document.querySelectorAll('tp-yt-paper-tab.tab-header, tp-yt-paper-tab'));
         const lyricsTabBtn = paperTabs.find(tab => tab.pageType === "MUSIC_PAGE_TYPE_TRACK_LYRICS" || (tab.textContent && tab.textContent.toLowerCase().includes('lyrics')));
-        if (lyricsTabBtn) {
+        const isTabDisabled = lyricsTabBtn && (lyricsTabBtn.hasAttribute('disabled') || lyricsTabBtn.getAttribute('aria-disabled') === 'true' || lyricsTabBtn.disabled);
+        if (lyricsTabBtn && !isTabDisabled) {
             lyricsTabBtn.click();
             domLyrics = await new Promise(resolve => {
                 let resolved = false;

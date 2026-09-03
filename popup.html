@@ -52,40 +52,32 @@
 
     <div class="section hide" id="toolbar-customization-section">
       <div class="active-layout-header">
-        <div class="section-label">BACKGROUND & ANIMATION</div>
-        <button id="reset-bg-btn" class="reset-btn" title="Reset Background & Animation">Reset</button>
-      </div>
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-title">Brightness</span>
-          <span class="setting-value" id="bg-brightness-val">120%</span>
-        </div>
-        <input type="range" id="bg-brightness-slider" min="20" max="150" value="120" class="setting-slider">
+        <div class="section-label">APPEARANCE</div>
+        <button id="reset-bg-btn" class="reset-btn" title="Reset to Defaults">Reset</button>
       </div>
 
       <div class="setting-row">
         <div class="setting-info">
-          <span class="setting-title">Background Blur</span>
-          <span class="setting-value" id="bg-blur-val">90%</span>
+          <span class="setting-title">Background</span>
         </div>
-        <input type="range" id="bg-blur-slider" min="70" max="150" value="90" class="setting-slider">
-      </div>
-
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-title">Background Style</span>
-        </div>
-        <div class="custom-dropdown" id="bg-type-dropdown" data-value="dynamic">
+        <div class="custom-dropdown" id="bg-type-dropdown" data-value="gentle">
           <button type="button" class="dropdown-trigger" id="bg-type-trigger">
-            <span class="dropdown-selected-text">Dynamic</span>
+            <span class="dropdown-selected-text">Dynamic (Gentle)</span>
             <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </button>
           <div class="dropdown-menu">
-            <div class="dropdown-option selected" data-value="dynamic">
-              <span class="option-text">Dynamic</span>
+            <div class="dropdown-option" data-value="lively">
+              <span class="option-text">Dynamic (Lively)</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="dropdown-option selected" data-value="gentle">
+              <span class="option-text">Dynamic (Gentle)</span>
               <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -98,16 +90,23 @@
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
+            <div class="dropdown-option" data-value="oled">
+              <span class="option-text">OLED</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="setting-row" id="bg-speed-row">
+      <div class="setting-row" id="bg-brightness-row">
         <div class="setting-info">
-          <span class="setting-title">Animation Speed</span>
-          <span class="setting-value" id="bg-speed-val">1.5x</span>
+          <span class="setting-title">Brightness</span>
+          <span class="setting-value" id="bg-brightness-val">100%</span>
         </div>
-        <input type="range" id="bg-speed-slider" min="0" max="30" value="15" step="1" class="setting-slider">
+        <input type="range" id="bg-brightness-slider" min="20" max="150" value="100" class="setting-slider">
       </div>
 
       <div class="setting-row">
@@ -131,14 +130,14 @@
               </svg>
             </div>
             <div class="dropdown-option" data-value="original">
-              <span class="option-text">Original Lyrics Only</span>
+              <span class="option-text">Original Only</span>
               <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
             <div class="dropdown-option" data-value="romaji">
-              <span class="option-text">Rōmaji Lyrics Only</span>
+              <span class="option-text">Rōmaji Only</span>
               <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>

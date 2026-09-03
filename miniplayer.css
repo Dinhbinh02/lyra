@@ -43,6 +43,7 @@ body,
     pointer-events: none;
     contain: strict;
     transform: translate3d(0, 0, 0);
+    filter: brightness(var(--bg-brightness, 1));
 }
 
 .bg-layer {
@@ -125,24 +126,32 @@ body,
     }
 }
 
-/* Static Background Mode (Battery Saver & Zero Animation) */
 #mini-player-root[data-bg-type="static"] .bg-layer {
-    animation: none !important;
+    animation-play-state: paused !important;
 }
 
 #mini-player-root[data-bg-type="static"] .bg-center,
 #mini-player-root[data-bg-type="static"] .bg-left,
 #mini-player-root[data-bg-type="static"] .bg-right {
-    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none;
 }
 
 #mini-player-root[data-bg-type="static"] .bg-base {
-    width: 140%;
-    height: 140%;
-    top: -20%;
-    left: -20%;
-    opacity: 0.95;
-    transform: none !important;
+    opacity: 1.0;
+    filter: blur(45px) brightness(0.7) saturate(2.0) !important;
+}
+
+#mini-player-root[data-bg-type="oled"] {
+    background: #000000 !important;
+}
+
+#mini-player-root[data-bg-type="oled"] .ambient-bg {
+    display: none !important;
+}
+
+#mini-player-root[data-bg-type="oled"] .ambient-overlay {
+    background: transparent !important;
 }
 
 .ambient-overlay {

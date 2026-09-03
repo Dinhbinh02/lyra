@@ -2,7 +2,7 @@
    "manifest_version": 3,
    "name": "__MSG_appName__",
    "default_locale": "en",
-   "version": "0.3.2",
+   "version": "0.3.3",
    "description": "__MSG_appDescription__",
    "icons": {
       "16": "icons/icon16.png",
@@ -43,7 +43,7 @@
             "*://music.youtube.com/*"
          ],
          "js": [
-            "dist/content.js"
+            "content.js"
          ],
          "run_at": "document_start"
       }
