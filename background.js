@@ -19,8 +19,11 @@ chrome.action.onClicked.addListener(async (tab) => {
             }
         });
     } catch (e) {
-        console.error('Action click error:', e);
     }
+});
+
+chrome.runtime.onUpdateAvailable.addListener(() => {
+    chrome.runtime.reload();
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -28,14 +31,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleAddToPlaylist(sendResponse);
         return true;
     }
+    if (message.action === "focusTab") {
+        if (sender.tab) {
+            chrome.tabs.update(sender.tab.id, { active: true });
+            chrome.windows.update(sender.tab.windowId, { focused: true });
+            sendResponse({ success: true });
+        } else {
+            chrome.tabs.query({ url: "*://music.youtube.com/*" }, (tabs) => {
+                if (tabs && tabs.length > 0) {
+                    chrome.tabs.update(tabs[0].id, { active: true });
+                    chrome.windows.update(tabs[0].windowId, { focused: true });
+                }
+                sendResponse({ success: true });
+            });
+        }
+        return true;
+    }
+    if (message.action === "romanizeBatch") {
+        handleRomanizeBatch(message.payload, sendResponse);
+        return true;
+    }
 });
+
+async function handleRomanizeBatch({ textPayload, lang }, sendResponse) {
+    const endpoints = [
+        `https://clients5.google.com/translate_a/single?client=dict-chrome-ex&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`,
+        `https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`,
+        `https://translate.google.com/translate_a/single?client=dict-chrome-ex&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`,
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`
+    ];
+
+    for (const url of endpoints) {
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `q=${encodeURIComponent(textPayload)}`
+            });
+            if (res.ok) {
+                const data = await res.json();
+                sendResponse({ success: true, data });
+                return;
+            }
+        } catch (err) { }
+    }
+    sendResponse({ success: false });
+}
 
 async function handleAddToPlaylist(sendResponse) {
     try {
         const tabs = await chrome.tabs.query({ url: "*://music.youtube.com/*" });
 
         if (tabs.length === 0) {
-            console.warn("YouTube Music tab not found.");
             sendResponse({ success: false, reason: "No YouTube Music tab found" });
             return;
         }
@@ -100,7 +147,6 @@ async function handleAddToPlaylist(sendResponse) {
             }
         });
     } catch (error) {
-        console.error("Error trying to add to playlist:", error);
         sendResponse({ success: false, error: error.message || "Unknown error" });
     }
 }

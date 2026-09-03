@@ -277,6 +277,69 @@
                 target.click();
             }
             window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result: true }, window.location.origin);
+        } else if (command === "seekTo") {
+            const targetSeconds = Math.max(0, Number(payload.seconds) || 0);
+            const player = document.getElementById("movie_player");
+            if (player && typeof player.seekTo === "function") {
+                player.seekTo(targetSeconds, true);
+            } else {
+                const video = document.querySelector("video");
+                if (video && isFinite(video.duration)) {
+                    video.currentTime = targetSeconds;
+                }
+            }
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result: true }, window.location.origin);
+        } else if (command === "getTrackLyrics") {
+            const result = await getTrackLyrics(payload?.videoId);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         }
     });
+
+    async function getTrackLyrics(videoId) {
+        try {
+            if (!videoId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                videoId = urlParams.get("v");
+            }
+            if (!videoId) return null;
+
+            const nextData = await innertubeRequest("next", { videoId });
+            if (!nextData) return null;
+
+            const tabs = nextData?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;
+            if (!Array.isArray(tabs)) return null;
+
+            let lyricsBrowseId = null;
+            for (const t of tabs) {
+                const tr = t?.tabRenderer;
+                const endpoint = tr?.endpoint?.browseEndpoint;
+                const pageType = endpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType;
+                if (pageType === "MUSIC_PAGE_TYPE_TRACK_LYRICS" || tr?.title?.toLowerCase() === "lyrics") {
+                    lyricsBrowseId = endpoint?.browseId;
+                    break;
+                }
+            }
+
+            if (!lyricsBrowseId) return null;
+
+            const browseData = await innertubeRequest("browse", { browseId: lyricsBrowseId });
+            if (!browseData) return null;
+
+            const sectionList = browseData?.contents?.sectionListRenderer?.contents;
+            if (Array.isArray(sectionList)) {
+                for (const section of sectionList) {
+                    const shelf = section?.musicDescriptionShelfRenderer;
+                    if (shelf?.description?.runs) {
+                        const text = shelf.description.runs.map(r => r.text).join("");
+                        if (text.trim().length > 0) {
+                            return text.trim();
+                        }
+                    }
+                }
+            }
+            return null;
+        } catch (err) {
+            return null;
+        }
+    }
 })();

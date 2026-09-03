@@ -41,13 +41,16 @@ body,
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
+    contain: strict;
+    transform: translate3d(0, 0, 0);
 }
 
 .bg-layer {
     position: absolute;
     object-fit: cover;
-    will-change: transform;
     pointer-events: none;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
 }
 
 .bg-base {
@@ -120,6 +123,26 @@ body,
     100% {
         transform: rotate(0deg) scale(1.3);
     }
+}
+
+/* Static Background Mode (Battery Saver & Zero Animation) */
+#mini-player-root[data-bg-type="static"] .bg-layer {
+    animation: none !important;
+}
+
+#mini-player-root[data-bg-type="static"] .bg-center,
+#mini-player-root[data-bg-type="static"] .bg-left,
+#mini-player-root[data-bg-type="static"] .bg-right {
+    display: none !important;
+}
+
+#mini-player-root[data-bg-type="static"] .bg-base {
+    width: 140%;
+    height: 140%;
+    top: -20%;
+    left: -20%;
+    opacity: 0.95;
+    transform: none !important;
 }
 
 .ambient-overlay {
@@ -832,6 +855,13 @@ body,
     padding-bottom: 10px;
     align-items: center;
     text-align: center;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.lyrics-list.no-transition .lyra-line,
+.lyrics-list.no-transition .lyra-letter,
+.lyrics-list.no-transition .lyra-romanized {
+    transition: none !important;
 }
 
 .lyra-line-wrap {
@@ -860,11 +890,6 @@ body,
     text-align: center;
 }
 
-.lyra-line.active {
-    color: #ffffff;
-    opacity: 1;
-}
-
 .lyra-line.is-word-line {
     flex-wrap: wrap;
 }
@@ -887,7 +912,6 @@ body,
 .lyra-line.active {
     color: #ffffff;
     opacity: 1;
-    font-weight: 700;
     transform: none;
 }
 
@@ -900,14 +924,12 @@ body,
 .lyra-line.active .lyra-letter.sung {
     color: #ffffff;
     opacity: 1;
-    font-weight: 700;
 }
 
 .lyra-line.sung,
 .lyra-line.sung .lyra-letter {
     color: rgba(255, 255, 255, 0.45);
     opacity: 0.45;
-    font-weight: 600;
 }
 
 .lyrics-list.plain-mode .lyra-line,
@@ -936,8 +958,10 @@ body,
 }
 
 .lyrics-container[data-lyrics-mode="romaji"] .lyra-romanized {
-    font-size: clamp(17px, 3cqw + 6px, 22px) !important;
-    font-weight: 700 !important;
+    font-size: clamp(15px, 2.5cqw + 5px, 18px) !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.45);
+    opacity: 0.55;
     margin-top: 0 !important;
     line-height: 1.4 !important;
 }
@@ -971,6 +995,11 @@ body,
 .lyrics-container[data-lyrics-mode="romaji"] .lyra-line.active+.lyra-romanized {
     color: #ffffff !important;
     opacity: 1 !important;
+}
+
+.lyrics-container[data-lyrics-mode="romaji"] .lyra-line.sung+.lyra-romanized {
+    color: rgba(255, 255, 255, 0.45) !important;
+    opacity: 0.45 !important;
 }
 
 @keyframes lyraShake {

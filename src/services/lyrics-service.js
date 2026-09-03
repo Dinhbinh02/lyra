@@ -227,6 +227,15 @@ export function isArtistMatching(candidateArtist, primaryArtist, artistParts, fu
 }
 
 const romanizeCache = new Map();
+const MAX_ROMANIZE_CACHE = 400;
+
+function setRomanizeCache(key, val) {
+    if (romanizeCache.size >= MAX_ROMANIZE_CACHE) {
+        const oldestKey = romanizeCache.keys().next().value;
+        romanizeCache.delete(oldestKey);
+    }
+    romanizeCache.set(key, val);
+}
 
 export function detectLangCode(text) {
     if (/[\u3040-\u30ff]/.test(text)) return 'ja';
@@ -272,7 +281,7 @@ export async function fetchRomanizedText(text) {
                     .trim();
 
                 if (cleanRomanized) {
-                    romanizeCache.set(text, cleanRomanized);
+                    setRomanizeCache(text, cleanRomanized);
                     return cleanRomanized;
                 }
             }

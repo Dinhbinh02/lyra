@@ -53,6 +53,7 @@ async function build() {
             bundle: true,
             minify: true,
             sourcemap: false,
+            drop: ['console'],
             target: ['chrome100']
         });
 

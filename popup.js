@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const defaultButtons = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
-    let activeButtons = [null, null, null, null, null, null, null];
+    let activeButtons = [...defaultButtons];
 
     function saveConfig() {
         const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
@@ -327,7 +327,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const blurVal = document.getElementById('bg-blur-val');
     const speedSlider = document.getElementById('bg-speed-slider');
     const speedVal = document.getElementById('bg-speed-val');
-    const lyricsModeSelect = document.getElementById('lyrics-mode-select');
+    const bgSpeedRow = document.getElementById('bg-speed-row');
+    const bgTypeDropdown = document.getElementById('bg-type-dropdown');
+    const lyricsModeDropdown = document.getElementById('lyrics-mode-dropdown');
+
+    function initCustomDropdown(dropdownEl, onChange) {
+        if (!dropdownEl) return null;
+        const trigger = dropdownEl.querySelector('.dropdown-trigger');
+        const textEl = dropdownEl.querySelector('.dropdown-selected-text');
+        const options = dropdownEl.querySelectorAll('.dropdown-option');
+
+        const setValue = (val) => {
+            dropdownEl.setAttribute('data-value', val);
+            let foundText = val;
+            options.forEach(opt => {
+                if (opt.getAttribute('data-value') === val) {
+                    opt.classList.add('selected');
+                    foundText = opt.querySelector('.option-text')?.textContent || val;
+                } else {
+                    opt.classList.remove('selected');
+                }
+            });
+            if (textEl) textEl.textContent = foundText;
+        };
+
+        trigger?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdownEl.classList.contains('open');
+            document.querySelectorAll('.custom-dropdown.open').forEach(d => {
+                if (d !== dropdownEl) d.classList.remove('open');
+            });
+            dropdownEl.classList.toggle('open', !isOpen);
+        });
+
+        options.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const val = opt.getAttribute('data-value');
+                setValue(val);
+                dropdownEl.classList.remove('open');
+                if (typeof onChange === 'function') onChange(val);
+            });
+        });
+
+        return { setValue };
+    }
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown.open').forEach(d => d.classList.remove('open'));
+    });
 
     function updateBrightnessUI(val) {
         if (brightnessSlider) brightnessSlider.value = val;
@@ -342,6 +390,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSpeedUI(val) {
         if (speedSlider) speedSlider.value = val;
         if (speedVal) speedVal.textContent = `${(val / 10).toFixed(1)}x`;
+    }
+
+    const bgTypeController = initCustomDropdown(bgTypeDropdown, (val) => {
+        updateBgTypeUI(val);
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        if (storage) {
+            storage.set({ bgType: val });
+        }
+    });
+
+    const lyricsModeController = initCustomDropdown(lyricsModeDropdown, (val) => {
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
+        if (storage) {
+            storage.set({ lyricsMode: val });
+        }
+    });
+
+    function updateBgTypeUI(val) {
+        if (bgTypeController) bgTypeController.setValue(val);
+        if (bgSpeedRow) {
+            if (val === 'static') {
+                bgSpeedRow.classList.add('disabled-row');
+            } else {
+                bgSpeedRow.classList.remove('disabled-row');
+            }
+        }
     }
 
     if (brightnessSlider) {
@@ -383,20 +457,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (lyricsModeSelect) {
-        lyricsModeSelect.addEventListener('change', (e) => {
-            const val = e.target.value || 'both';
-            const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
-            if (storage) {
-                storage.set({ lyricsMode: val });
-            }
-        });
-    }
-
     const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
     if (storage) {
         const applySettings = (result) => {
-            if (result && result.customControls && Array.isArray(result.customControls)) {
+            if (result && result.customControls && Array.isArray(result.customControls) && result.customControls.some(Boolean)) {
                 activeButtons = [null, null, null, null, null, null, null];
                 result.customControls.forEach((btn, idx) => {
                     if (idx < 7) activeButtons[idx] = btn;
@@ -405,6 +469,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeButtons = [...defaultButtons];
             }
             renderToolbar();
+
+            const savedBgType = result?.bgType || 'dynamic';
+            updateBgTypeUI(savedBgType);
 
             const savedBrightness = result?.bgBrightness !== undefined ? result.bgBrightness : 120;
             updateBrightnessUI(savedBrightness);
@@ -416,12 +483,12 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSpeedUI(savedSpeed);
 
             const savedLyricsMode = result?.lyricsMode || 'both';
-            if (lyricsModeSelect) lyricsModeSelect.value = savedLyricsMode;
+            if (lyricsModeController) lyricsModeController.setValue(savedLyricsMode);
         };
 
-        storage.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (result) => {
+        storage.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode', 'bgType'], (result) => {
             if ((!result || Object.keys(result).length === 0) && chrome.storage.local && storage !== chrome.storage.local) {
-                chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode'], (localRes) => {
+                chrome.storage.local.get(['customControls', 'bgBrightness', 'bgBlur', 'bgSpeed', 'lyricsMode', 'bgType'], (localRes) => {
                     applySettings(localRes);
                 });
             } else {
@@ -436,13 +503,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBgBtn = document.getElementById('reset-bg-btn');
     if (resetBgBtn) {
         resetBgBtn.addEventListener('click', () => {
+            updateBgTypeUI('dynamic');
             updateBrightnessUI(120);
             updateBlurUI(90);
             updateSpeedUI(15);
-            if (lyricsModeSelect) lyricsModeSelect.value = 'both';
+            if (lyricsModeController) lyricsModeController.setValue('both');
             const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.sync || chrome.storage.local) : null;
             if (storage) {
                 storage.set({
+                    bgType: 'dynamic',
                     bgBrightness: 120,
                     bgBlur: 90,
                     bgSpeed: 1.5,

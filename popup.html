@@ -43,7 +43,8 @@
           </div>
           <div class="step-item">
             <span class="step-num">3</span>
-            <div class="step-content">Click the button <span class="pip-icon-badge"><img src="icons/icon512.png" alt="Lyra" class="pip-inline-img"></span> on player bar</div>
+            <div class="step-content">Click the button <span class="pip-icon-badge"><img src="icons/icon512.png"
+                  alt="Lyra" class="pip-inline-img"></span> on player bar</div>
           </div>
         </div>
       </div>
@@ -72,6 +73,37 @@
 
       <div class="setting-row">
         <div class="setting-info">
+          <span class="setting-title">Background Style</span>
+        </div>
+        <div class="custom-dropdown" id="bg-type-dropdown" data-value="dynamic">
+          <button type="button" class="dropdown-trigger" id="bg-type-trigger">
+            <span class="dropdown-selected-text">Dynamic</span>
+            <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="dropdown-option selected" data-value="dynamic">
+              <span class="option-text">Dynamic</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="dropdown-option" data-value="static">
+              <span class="option-text">Static</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-row" id="bg-speed-row">
+        <div class="setting-info">
           <span class="setting-title">Animation Speed</span>
           <span class="setting-value" id="bg-speed-val">1.5x</span>
         </div>
@@ -82,11 +114,38 @@
         <div class="setting-info">
           <span class="setting-title">Lyrics Display</span>
         </div>
-        <select id="lyrics-mode-select" class="setting-select">
-          <option value="both">Both (Original + Rōmaji)</option>
-          <option value="original">Original Lyrics Only</option>
-          <option value="romaji">Rōmaji Lyrics Only</option>
-        </select>
+        <div class="custom-dropdown" id="lyrics-mode-dropdown" data-value="both">
+          <button type="button" class="dropdown-trigger" id="lyrics-mode-trigger">
+            <span class="dropdown-selected-text">Both (Original + Rōmaji)</span>
+            <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="dropdown-option selected" data-value="both">
+              <span class="option-text">Both (Original + Rōmaji)</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="dropdown-option" data-value="original">
+              <span class="option-text">Original Lyrics Only</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="dropdown-option" data-value="romaji">
+              <span class="option-text">Rōmaji Lyrics Only</span>
+              <svg class="option-check" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="section-label" style="margin-top: 8px;">TOOLBAR CUSTOMIZATION</div>
@@ -96,7 +155,7 @@
         <button id="reset-layout-btn" class="reset-btn" title="Reset to Default Layout">Reset</button>
       </div>
       <div class="slots-row">
-        
+
         <div class="slot optional-slot" data-slot="0"><span class="placeholder-num">6</span></div>
         <div class="slot optional-slot" data-slot="1"><span class="placeholder-num">4</span></div>
         <div class="slot optional-slot middle-slot" data-slot="2"><span class="placeholder-num">1</span></div>

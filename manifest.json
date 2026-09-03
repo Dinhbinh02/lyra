@@ -2,7 +2,7 @@
    "manifest_version": 3,
    "name": "__MSG_appName__",
    "default_locale": "en",
-   "version": "0.1.6",
+   "version": "0.3.1",
    "description": "__MSG_appDescription__",
    "icons": {
       "16": "icons/icon16.png",
@@ -31,7 +31,11 @@
       "storage"
    ],
    "host_permissions": [
-      "*://music.youtube.com/*"
+      "*://music.youtube.com/*",
+      "https://translate.googleapis.com/*",
+      "https://clients5.google.com/*",
+      "https://translate.google.com/*",
+      "https://lrclib.net/*"
    ],
    "content_scripts": [
       {
