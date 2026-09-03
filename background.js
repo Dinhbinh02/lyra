@@ -53,7 +53,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-async function handleRomanizeBatch({ textPayload, lang }, sendResponse) {
+async function handleRomanizeBatch({ texts, lang }, sendResponse) {
+    if (!Array.isArray(texts) || texts.length === 0) {
+        sendResponse({ success: true, results: [] });
+        return;
+    }
+
     const endpoints = [
         `https://clients5.google.com/translate_a/single?client=dict-chrome-ex&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`,
         `https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`,
@@ -61,21 +66,84 @@ async function handleRomanizeBatch({ textPayload, lang }, sendResponse) {
         `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${lang}&tl=${lang}-Latn&dt=t&dt=rm`
     ];
 
-    for (const url of endpoints) {
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `q=${encodeURIComponent(textPayload)}`
-            });
-            if (res.ok) {
-                const data = await res.json();
-                sendResponse({ success: true, data });
-                return;
-            }
-        } catch (err) { }
+    const cleanRomaji = str => (str || '')
+        .replace(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\u0e00-\u0e7f\u0400-\u04ff\u0500-\u052f\u0900-\u097f\u0980-\u09ff\u0a00-\u0a7f\u0a80-\u0aff\u0b00-\u0b7f\u0b80-\u0bff\u0c00-\u0c7f\u0c80-\u0cff\u0d00-\u0d7f\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\u0590-\u05ff\u0370-\u03ff\u1f00-\u1fff\u1000-\u109f\u1780-\u17ff\u10a0-\u10ff\u0530-\u058f]/g, '')
+        .replace(/[\u2200-\u2BFF\u2000-\u206F\u0000-\u001F]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    async function trySingleBatch() {
+        const payload = texts.join(' ### ');
+        for (const url of endpoints) {
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `q=${encodeURIComponent(payload)}`
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    let rawTranslit = '';
+                    if (Array.isArray(data) && Array.isArray(data[0])) {
+                        for (const item of data[0]) {
+                            if (Array.isArray(item)) {
+                                if (typeof item[2] === 'string' && item[2]) rawTranslit += item[2];
+                                else if (typeof item[3] === 'string' && item[3]) rawTranslit += item[3];
+                            }
+                        }
+                    }
+                    if (rawTranslit) {
+                        const parts = rawTranslit.split(/###/i);
+                        if (parts.length === texts.length) {
+                            return parts.map(cleanRomaji);
+                        }
+                    }
+                }
+            } catch (err) { }
+        }
+        return null;
     }
-    sendResponse({ success: false });
+
+    const batchResult = await trySingleBatch();
+    if (batchResult) {
+        sendResponse({ success: true, results: batchResult });
+        return;
+    }
+
+    async function transliterateSingle(text) {
+        if (!text || !text.trim()) return '';
+        for (const url of endpoints) {
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `q=${encodeURIComponent(text)}`
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    let rawTranslit = '';
+                    if (Array.isArray(data) && Array.isArray(data[0])) {
+                        for (const item of data[0]) {
+                            if (Array.isArray(item)) {
+                                if (typeof item[2] === 'string' && item[2]) rawTranslit += item[2];
+                                else if (typeof item[3] === 'string' && item[3]) rawTranslit += item[3];
+                            }
+                        }
+                    }
+                    if (!rawTranslit && Array.isArray(data[1])) {
+                        rawTranslit = data[1].map(item => Array.isArray(item) ? item[0] : '').filter(Boolean).join(' ');
+                    }
+                    if (rawTranslit) {
+                        return cleanRomaji(rawTranslit);
+                    }
+                }
+            } catch (err) { }
+        }
+        return '';
+    }
+
+    const results = await Promise.all(texts.map(text => transliterateSingle(text)));
+    sendResponse({ success: true, results });
 }
 
 async function handleAddToPlaylist(sendResponse) {

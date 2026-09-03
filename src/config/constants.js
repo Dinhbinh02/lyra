@@ -6,4 +6,4 @@ export const NORMAL_PADDING_OFFSET = 16;
 export const LYRICS_PADDING_OFFSET = 20;
 export const LYRICS_MIN_LAYOUT_WIDTH = 350;
 export const DEFAULT_BUTTONS = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
-export const LYRICS_CACHE_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000;
+export const LYRICS_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;

@@ -1,7 +1,7 @@
-const esbuild = require('esbuild');
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import esbuild from 'esbuild';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 function copyDirSync(src, dest) {
     fs.mkdirSync(dest, { recursive: true });
@@ -53,7 +53,6 @@ async function build() {
             bundle: true,
             minify: true,
             sourcemap: false,
-            drop: ['console'],
             target: ['chrome100']
         });
 
