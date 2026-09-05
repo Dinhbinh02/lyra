@@ -1,6 +1,6 @@
 {
   "name": "lyra",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "description": "<p align=\"center\">   <img src=\"icons/icon_hd.png\" width=\"128\" height=\"128\" alt=\"Lyra Logo\" /> </p>",
   "main": "background.js",
   "scripts": {

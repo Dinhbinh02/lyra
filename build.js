@@ -3,13 +3,41 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
-function copyDirSync(src, dest) {
-    fs.mkdirSync(dest, { recursive: true });
-    let entries = fs.readdirSync(src, { withFileTypes: true });
+const baseCompilerOptions = {
+    target: ['chrome110'],
+    minify: true,
+    treeShaking: true,
+    legalComments: 'none',
+    charset: 'utf8',
+    sourcemap: false,
+    drop: ['debugger'],
+    pure: ['console.log', 'console.debug', 'console.info'],
+    define: {
+        'process.env.NODE_ENV': '"production"'
+    }
+};
 
-    for (let entry of entries) {
-        let srcPath = path.join(src, entry.name);
-        let destPath = path.join(dest, entry.name);
+function minifyHtml(htmlContent) {
+    return htmlContent
+        // Remove HTML comments
+        .replace(/<!--[\s\S]*?-->/g, '')
+        // Collapse whitespace between tags
+        .replace(/>\s+</g, '><')
+        // Collapse redundant multiple spaces/newlines
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+function copyDirSync(src, dest) {
+    if (!fs.existsSync(src)) return;
+    fs.mkdirSync(dest, { recursive: true });
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        if (entry.name === '.DS_Store') continue;
+
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
 
         if (entry.isDirectory()) {
             copyDirSync(srcPath, destPath);
@@ -19,19 +47,26 @@ function copyDirSync(src, dest) {
     }
 }
 
+function processHtmlFile(srcPath, destPath) {
+    if (!fs.existsSync(srcPath)) return;
+    const raw = fs.readFileSync(srcPath, 'utf8');
+    const minified = minifyHtml(raw);
+    fs.writeFileSync(destPath, minified, 'utf8');
+}
+
 async function build() {
-    console.log('Cleaning dist folder...');
+    const startTime = Date.now();
+    console.log('[Lyra Build] Cleaning and preparing dist folder...');
     if (fs.existsSync('dist')) {
         fs.rmSync('dist', { recursive: true, force: true });
     }
-    fs.mkdirSync('dist');
+    fs.mkdirSync('dist', { recursive: true });
 
-    console.log('Copying static assets...');
-    fs.copyFileSync('manifest.json', 'dist/manifest.json');
-    fs.copyFileSync('miniplayer.html', 'dist/miniplayer.html');
-    fs.copyFileSync('popup.html', 'dist/popup.html');
-    fs.copyFileSync('miniplayer.js', 'dist/miniplayer.js');
-    
+    console.log('[Lyra Build] Copying & minifying static assets...');
+    if (fs.existsSync('manifest.json')) fs.copyFileSync('manifest.json', 'dist/manifest.json');
+    processHtmlFile('miniplayer.html', 'dist/miniplayer.html');
+    processHtmlFile('popup.html', 'dist/popup.html');
+
     if (fs.existsSync('icons')) {
         copyDirSync('icons', 'dist/icons');
     }
@@ -40,48 +75,68 @@ async function build() {
         copyDirSync('_locales', 'dist/_locales');
     }
 
-    console.log('Bundling & minifying JS/CSS files with esbuild...');
+    console.log('[Lyra Build] Compiling JS & CSS in parallel with esbuild...');
     try {
-        await esbuild.build({
-            entryPoints: {
-                'content': 'src/index.js',
-                'background': 'background.js',
-                'miniplayer': 'miniplayer.js',
-                'popup': 'popup.js'
-            },
-            outdir: 'dist',
-            bundle: true,
-            minify: true,
-            sourcemap: false,
-            target: ['chrome100']
-        });
+        await Promise.all([
+            // 1. Content & UI Scripts (Bundled as IIFE to isolate scope)
+            esbuild.build({
+                ...baseCompilerOptions,
+                entryPoints: {
+                    'content': 'src/index.js',
+                    'miniplayer': 'miniplayer.js',
+                    'popup': 'popup.js'
+                },
+                outdir: 'dist',
+                bundle: true,
+                format: 'iife'
+            }),
 
-        await esbuild.build({
-            entryPoints: [
-                'miniplayer.css',
-                'popup.css'
-            ],
-            outdir: 'dist',
-            bundle: true,
-            minify: true,
-            target: ['chrome100']
-        });
-        console.log('Build completed successfully!');
+            // 2. Background Service Worker (Bundled as ESM for MV3 module worker)
+            esbuild.build({
+                ...baseCompilerOptions,
+                entryPoints: {
+                    'background': 'background.js'
+                },
+                outdir: 'dist',
+                bundle: true,
+                format: 'esm'
+            }),
 
-        console.log('Zipping dist folder...');
+            // 3. CSS Stylesheets
+            esbuild.build({
+                ...baseCompilerOptions,
+                entryPoints: [
+                    'miniplayer.css',
+                    'popup.css'
+                ],
+                outdir: 'dist',
+                bundle: true
+            })
+        ]);
+
+        console.log('[Lyra Build] Packaging extension zip...');
         if (fs.existsSync('lyra.zip')) {
             fs.unlinkSync('lyra.zip');
         }
         try {
-            execSync('zip -r ../lyra.zip *', { cwd: 'dist' });
-        } catch (e) {
-            execSync('powershell -Command "Compress-Archive -Path dist\\* -DestinationPath lyra.zip -Force"');
+            execSync('zip -r ../lyra.zip *', { cwd: 'dist', stdio: 'ignore' });
+            console.log('[Lyra Build] Zip package "lyra.zip" created successfully!');
+        } catch (_) {
+            try {
+                execSync('powershell -Command "Compress-Archive -Path dist\\* -DestinationPath lyra.zip -Force"', { stdio: 'ignore' });
+                console.log('[Lyra Build] Zip package "lyra.zip" created successfully!');
+            } catch (zipErr) {
+                console.warn('[Lyra Build] Could not create zip automatically:', zipErr.message);
+            }
         }
-        console.log('Zip file "lyra.zip" created successfully at project root!');
+
+        const elapsed = Date.now() - startTime;
+        console.log(`[Lyra Build] Build completed successfully in ${elapsed}ms! All optimized files ready in dist/`);
     } catch (err) {
-        console.error('Build failed:', err);
+        console.error('[Lyra Build Error]', err);
         process.exit(1);
     }
 }
 
 build();
+
