@@ -32,19 +32,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     if (message.action === "focusTab") {
-        if (sender.tab) {
-            chrome.tabs.update(sender.tab.id, { active: true });
-            chrome.windows.update(sender.tab.windowId, { focused: true });
+        (async () => {
+            const tab = sender.tab || (await chrome.tabs.query({ url: "*://music.youtube.com/*" }))[0];
+            if (tab) {
+                chrome.tabs.update(tab.id, { active: true });
+                if (tab.windowId) chrome.windows.update(tab.windowId, { focused: true });
+            }
             sendResponse({ success: true });
-        } else {
-            chrome.tabs.query({ url: "*://music.youtube.com/*" }, (tabs) => {
-                if (tabs && tabs.length > 0) {
-                    chrome.tabs.update(tabs[0].id, { active: true });
-                    chrome.windows.update(tabs[0].windowId, { focused: true });
-                }
-                sendResponse({ success: true });
-            });
-        }
+        })();
         return true;
     }
     if (message.action === "romanizeBatch") {

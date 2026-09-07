@@ -302,23 +302,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const settingsToggleBtn = document.getElementById('settings-toggle-btn');
-    const customizationSection = document.getElementById('toolbar-customization-section');
-    const howToUseSection = document.getElementById('main-how-to-use-section');
-    const footerTipsSection = document.getElementById('main-footer-tips');
+    const settingsSection = document.getElementById('settings');
+    const guideSection = document.getElementById('guide');
+    const tipsSection = document.getElementById('tips');
     
-    if (settingsToggleBtn && customizationSection) {
+    if (settingsToggleBtn && settingsSection) {
         settingsToggleBtn.addEventListener('click', () => {
-            const isHidden = customizationSection.classList.contains('hide');
+            const isHidden = settingsSection.classList.contains('hide');
             if (isHidden) {
-                customizationSection.classList.remove('hide');
+                settingsSection.classList.remove('hide');
                 settingsToggleBtn.classList.add('active');
-                if (howToUseSection) howToUseSection.classList.add('hide');
-                if (footerTipsSection) footerTipsSection.classList.add('hide');
+                if (guideSection) guideSection.classList.add('hide');
+                if (tipsSection) tipsSection.classList.add('hide');
             } else {
-                customizationSection.classList.add('hide');
+                settingsSection.classList.add('hide');
                 settingsToggleBtn.classList.remove('active');
-                if (howToUseSection) howToUseSection.classList.remove('hide');
-                if (footerTipsSection) footerTipsSection.classList.remove('hide');
+                if (guideSection) guideSection.classList.remove('hide');
+                if (tipsSection) tipsSection.classList.remove('hide');
             }
         });
     }
@@ -328,6 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bgBrightnessVal = document.getElementById('bg-brightness-val');
     const bgBrightnessRow = document.getElementById('bg-brightness-row');
     const lyricsModeDropdown = document.getElementById('lyrics-mode-dropdown');
+    const coverBtnDropdown = document.getElementById('cover-btn-dropdown');
 
     function updateBrightnessUI(val) {
         if (bgBrightnessSlider) bgBrightnessSlider.value = val;
@@ -395,6 +396,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const coverBtnController = initCustomDropdown(coverBtnDropdown, (val) => {
+        const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
+        if (storage) {
+            storage.set({ coverButtonAction: val });
+        }
+    });
+
     function updateBgTypeUI(val) {
         if (bgTypeController) bgTypeController.setValue(val);
         if (bgBrightnessRow) {
@@ -440,11 +448,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const savedLyricsMode = result?.lyricsMode || 'both';
             if (lyricsModeController) lyricsModeController.setValue(savedLyricsMode);
+
+            const savedCoverButton = result?.coverButtonAction || 'playlist';
+            if (coverBtnController) coverBtnController.setValue(savedCoverButton);
         };
 
-        storage.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode'], (result) => {
+        storage.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode', 'coverButtonAction'], (result) => {
             if ((!result || Object.keys(result).length === 0) && chrome.storage.sync && storage !== chrome.storage.sync) {
-                chrome.storage.sync.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode'], (syncRes) => {
+                chrome.storage.sync.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode', 'coverButtonAction'], (syncRes) => {
                     applySettings(syncRes);
                 });
             } else {
@@ -462,12 +473,14 @@ document.addEventListener('DOMContentLoaded', () => {
             updateBgTypeUI('gentle');
             updateBrightnessUI(100);
             if (lyricsModeController) lyricsModeController.setValue('both');
+            if (coverBtnController) coverBtnController.setValue('playlist');
             const storage = (typeof chrome !== 'undefined' && chrome.storage) ? (chrome.storage.local || chrome.storage.sync) : null;
             if (storage) {
                 storage.set({
                     bgType: 'gentle',
                     bgBrightness: 100,
-                    lyricsMode: 'both'
+                    lyricsMode: 'both',
+                    coverButtonAction: 'playlist'
                 });
             }
         });

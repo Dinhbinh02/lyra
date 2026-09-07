@@ -435,11 +435,50 @@ let customSearchBtn = null;
 let isSearchViewOpen = false;
 let openedFromSearch = false;
 let isMuted = false;
+const COVER_PLUS_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
+const COVER_HEART_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+
 const defaultButtons = ['playlist', 'queue', 'prev', 'play', 'next', 'lyrics', 'search'];
 let customControlsPriority = [...defaultButtons];
 let bgTypeVal = 'gentle';
 let bgBrightnessVal = 100;
+let coverButtonAction = 'playlist';
+let coverActionBtn = null;
 let updateCoverSizeFn = null;
+
+function updateCoverButtonState() {
+    if (!pipWindow || pipWindow.closed) return;
+    const btn = pipWindow.document.getElementById('add-to-playlist') || pipWindow.document.getElementById('addToPlaylist-btn') || coverActionBtn;
+    if (!btn) return;
+
+    if (coverButtonAction === 'like') {
+        const likeStatus = document.querySelector('ytmusic-like-button-renderer');
+        const status = likeStatus ? likeStatus.getAttribute('like-status') : 'INDIFFERENT';
+        const isLiked = status === 'LIKE';
+
+        if (btn.getAttribute('data-action') !== 'like') {
+            btn.innerHTML = COVER_HEART_ICON_SVG;
+            btn.setAttribute('data-action', 'like');
+        }
+        btn.title = isLiked ? 'Liked' : 'Like';
+        if (isLiked) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    } else {
+        if (btn.getAttribute('data-action') !== 'playlist') {
+            btn.innerHTML = COVER_PLUS_ICON_SVG;
+            btn.setAttribute('data-action', 'playlist');
+        }
+        btn.title = 'Save to playlist';
+        if (isPlaylistViewOpen && isAddToPlaylistMode) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
+}
 
 function updatePipContent() {
     if (!pipWindow) return;
@@ -593,6 +632,7 @@ function setValues() {
             customLikeBtn.classList.remove('active');
         }
     }
+    updateCoverButtonState();
 
     if (customDislikeBtn) {
         const likeStatus = document.querySelector('ytmusic-like-button-renderer');
@@ -1056,16 +1096,18 @@ async function setup() {
             bgTypeVal = result?.bgType || 'gentle';
             if (result?.bgBrightness !== undefined) bgBrightnessVal = clampBrightness(result.bgBrightness);
             if (result?.lyricsMode !== undefined) currentLyricsDisplayMode = result.lyricsMode;
+            if (result?.coverButtonAction !== undefined) coverButtonAction = result.coverButtonAction;
             applyLyricsModeToDom();
             applyBgTypeToDom();
+            updateCoverButtonState();
             if (pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
                 updateCoverSizeFn();
             }
         };
 
-        settingsStorage.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode'], (result) => {
+        settingsStorage.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode', 'coverButtonAction'], (result) => {
             if ((!result || Object.keys(result).length === 0) && chrome.storage.sync && settingsStorage !== chrome.storage.sync) {
-                chrome.storage.sync.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode'], (syncRes) => {
+                chrome.storage.sync.get(['customControls', 'bgType', 'bgBrightness', 'lyricsMode', 'coverButtonAction'], (syncRes) => {
                     applySettingsFromObj(syncRes);
                 });
             } else {
@@ -1090,6 +1132,10 @@ async function setup() {
                     if (changes.lyricsMode) {
                         currentLyricsDisplayMode = changes.lyricsMode.newValue || 'both';
                         applyLyricsModeToDom();
+                    }
+                    if (changes.coverButtonAction) {
+                        coverButtonAction = changes.coverButtonAction.newValue || 'playlist';
+                        updateCoverButtonState();
                     }
                     if (changes.bgType && pipWindow && !pipWindow.closed && typeof updateCoverSizeFn === 'function') {
                         updateCoverSizeFn();
@@ -1205,9 +1251,33 @@ async function setup() {
         });
     }
 
-    if (addToPlaylistBtn && playlistContainer) {
-        addToPlaylistBtn.addEventListener('click', () => {
-            togglePlaylistPanel(undefined, true);
+    if (addToPlaylistBtn) {
+        coverActionBtn = addToPlaylistBtn;
+        updateCoverButtonState();
+        addToPlaylistBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (coverButtonAction === 'like') {
+                const ytLikeBtn = document.querySelector('ytmusic-like-button-renderer[id="like-button-renderer"] #button-shape-like button') || document.querySelector('#button-shape-like button');
+                if (ytLikeBtn) {
+                    ytLikeBtn.click();
+                    setTimeout(() => {
+                        updateCoverButtonState();
+                        if (customLikeBtn) {
+                            const likeStatus = document.querySelector('ytmusic-like-button-renderer');
+                            const status = likeStatus ? likeStatus.getAttribute('like-status') : 'INDIFFERENT';
+                            if (status === 'LIKE') {
+                                customLikeBtn.classList.add('active');
+                            } else {
+                                customLikeBtn.classList.remove('active');
+                            }
+                        }
+                    }, 120);
+                }
+            } else {
+                if (playlistContainer) {
+                    togglePlaylistPanel(undefined, true);
+                }
+            }
         });
     }
 
@@ -2539,6 +2609,7 @@ function close() {
     coverHtml = null;
     placeHolderHtml = null;
     track = null;
+    coverActionBtn = null;
     shuffleHtml = null;
     repeatBtn = null;
     repeatHtml = null;

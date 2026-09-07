@@ -240,6 +240,18 @@ body,
     opacity: 1;
 }
 
+.add-to-playlist-btn svg {
+    transition: transform 0.15s ease;
+}
+
+.add-to-playlist-btn:hover svg {
+    transform: scale(1.1);
+}
+
+.add-to-playlist-btn.active svg path {
+    fill: currentColor;
+}
+
 .song-info {
     flex: 1;
     min-width: 0;

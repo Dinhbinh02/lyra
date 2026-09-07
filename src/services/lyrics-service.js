@@ -115,57 +115,51 @@ export function parseLrc(lrcText) {
     return result.sort((a, b) => a.time - b.time);
 }
 
-export function cleanExpiredLyricsCache() {
-    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
-    chrome.storage.local.get(null, (items) => {
-        if (chrome.runtime.lastError || !items) return;
+export async function cleanExpiredLyricsCache() {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+    try {
+        const items = await chrome.storage.local.get(null);
+        if (!items) return;
         const now = Date.now();
-        const keysToRemove = [];
-        Object.keys(items).forEach(key => {
-            if (key.startsWith('lyric_cache_')) {
-                const cached = items[key];
-                if (!cached || !cached.timestamp || (now - cached.timestamp > LYRICS_CACHE_EXPIRATION_MS)) {
-                    keysToRemove.push(key);
-                }
-            }
+        const keysToRemove = Object.keys(items).filter(key => {
+            if (!key.startsWith('lyric_cache_')) return false;
+            const cached = items[key];
+            return !cached?.timestamp || (now - cached.timestamp > LYRICS_CACHE_EXPIRATION_MS);
         });
         if (keysToRemove.length > 0) {
-            chrome.storage.local.remove(keysToRemove);
+            await chrome.storage.local.remove(keysToRemove);
         }
-    });
+    } catch (e) { }
 }
 
-export function getLyricsFromStorage(songKey) {
-    return new Promise((resolve) => {
-        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-            return resolve(null);
-        }
+export async function getLyricsFromStorage(songKey) {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return null;
+    try {
         const storageKey = 'lyric_cache_' + songKey;
-        chrome.storage.local.get([storageKey], (result) => {
-            if (chrome.runtime.lastError || !result || !result[storageKey]) {
-                return resolve(null);
-            }
-            const cached = result[storageKey];
-            const now = Date.now();
-            if (now - cached.timestamp > LYRICS_CACHE_EXPIRATION_MS) {
-                chrome.storage.local.remove([storageKey]);
-                return resolve(null);
-            }
-            resolve(cached);
-        });
-    });
+        const result = await chrome.storage.local.get([storageKey]);
+        const cached = result?.[storageKey];
+        if (!cached) return null;
+        if (Date.now() - cached.timestamp > LYRICS_CACHE_EXPIRATION_MS) {
+            chrome.storage.local.remove([storageKey]);
+            return null;
+        }
+        return cached;
+    } catch (e) {
+        return null;
+    }
 }
 
-export function saveLyricsToStorage(songKey, data, source, type = 'SYNCED') {
-    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+export async function saveLyricsToStorage(songKey, data, source, type = 'SYNCED') {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
     const storageKey = 'lyric_cache_' + songKey;
-    const cacheObj = {
-        timestamp: Date.now(),
-        data: data,
-        source: source,
-        type: type
-    };
-    chrome.storage.local.set({ [storageKey]: cacheObj });
+    await chrome.storage.local.set({
+        [storageKey]: {
+            timestamp: Date.now(),
+            data,
+            source,
+            type
+        }
+    });
 }
 
 export function resetYtmBrowseLyrics() {
