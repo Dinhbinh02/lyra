@@ -201,19 +201,72 @@
         return false;
     }
 
+    function navigate(endpoint) {
+        if (!endpoint) return false;
+        const app = document.querySelector("ytmusic-app");
+        if (app) {
+            app.dispatchEvent(new CustomEvent("yt-navigate", {
+                bubbles: true,
+                composed: true,
+                detail: { endpoint }
+            }));
+            return true;
+        }
+        return false;
+    }
+
+    async function playPlaylist(playlistId, shuffle = false) {
+        if (!playlistId) return false;
+        const app = document.querySelector("ytmusic-app");
+        if (!app) return false;
+        const pid = String(playlistId).replace(/^VL/, "");
+        const watchPlaylistEndpoint = { playlistId: pid };
+        if (shuffle) {
+            watchPlaylistEndpoint.params = "wAEB8gECKAE%3D";
+        }
+        app.dispatchEvent(new CustomEvent("yt-navigate", {
+            bubbles: true,
+            composed: true,
+            detail: {
+                endpoint: {
+                    watchPlaylistEndpoint
+                }
+            }
+        }));
+        return true;
+    }
+
     function parseListItem(entry) {
         const renderer = entry?.musicResponsiveListItemRenderer ?? entry?.musicTwoRowItemRenderer;
         if (!renderer) return null;
-        const videoId = renderer?.playlistItemData?.videoId ?? renderer?.navigationEndpoint?.watchEndpoint?.videoId ?? null;
+        const isGreyedOut = renderer?.musicItemRendererDisplayPolicy === "MUSIC_ITEM_RENDERER_DISPLAY_POLICY_GREY_OUT";
+        const playButton = renderer?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer;
+        const playEndpoint = playButton?.playNavigationEndpoint?.watchEndpoint ?? renderer?.navigationEndpoint?.watchEndpoint ?? null;
+        const videoId = renderer?.playlistItemData?.videoId ?? playEndpoint?.videoId ?? null;
+        const isPlayable = !isGreyedOut && Boolean(playEndpoint || (playButton && videoId));
         const runs = renderer?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? renderer?.title?.runs ?? [];
         const title = runs.map(r => r.text).join("");
         const artistRuns = renderer?.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? renderer?.subtitle?.runs ?? [];
         const artist = artistRuns.map(r => r.text).join("");
-        const durRuns = renderer?.flexColumns?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? renderer?.lengthText?.runs ?? [];
-        const duration = durRuns.map(r => r.text).join("");
+        const fixedRuns = renderer?.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs ?? [];
+        const lengthRuns = renderer?.lengthText?.runs ?? [];
+        let duration = (fixedRuns.length ? fixedRuns : lengthRuns).map(r => r.text).join("").trim();
+        if (!duration) {
+            for (let i = 2; i < (renderer?.flexColumns?.length || 0); i++) {
+                const text = (renderer.flexColumns[i]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [])
+                    .map(r => r.text).join("").trim();
+                if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) {
+                    duration = text;
+                    break;
+                }
+            }
+        }
+        if (duration && !/^\d{1,2}:\d{2}(:\d{2})?$/.test(duration)) {
+            duration = "";
+        }
         const thumbs = renderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ?? renderer?.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ?? [];
-        const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : (videoId ? `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg` : "");
-        return { videoId, title, artist, duration, thumb };
+        const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : (isPlayable && videoId ? `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg` : "");
+        return { videoId, title, artist, duration, thumb, isPlayable };
     }
 
     const SEARCH_FILTERS = {
@@ -266,6 +319,12 @@
         } else if (command === "playVideo") {
             const result = await playVideo(payload.videoId);
             window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
+        } else if (command === "playPlaylist") {
+            const result = await playPlaylist(payload?.playlistId, payload?.shuffle);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
+        } else if (command === "navigate") {
+            const result = navigate(payload?.endpoint);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         } else if (command === "playQueueIndex") {
             const scope = document.querySelector("ytmusic-player-queue") ?? document;
             const items = [...scope.querySelectorAll("ytmusic-player-queue-item")].filter(
@@ -292,8 +351,69 @@
         } else if (command === "getTrackLyrics") {
             const result = await getTrackLyrics(payload?.videoId);
             window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
+        } else if (command === "getPlaylistSongs") {
+            const result = await getPlaylistSongs(payload?.playlistId);
+            window.postMessage({ source: FROM_MINIPLAYER, type: "response", requestId, result }, window.location.origin);
         }
     });
+
+    async function getPlaylistSongs(playlistId) {
+        try {
+            if (!(await sapisidHash())) return [];
+            const cleanId = (playlistId || "").replace(/^VL/, "");
+            const browseId = cleanId.startsWith("VL") ? cleanId : ("VL" + cleanId);
+            const data = await innertubeRequest("browse", { browseId });
+            if (!data) return [];
+
+            const tabs = data?.contents?.singleColumnBrowseResultsRenderer?.tabs;
+            const singleTabContent = tabs?.[0]?.tabRenderer?.content;
+            const twoColSec = data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents;
+            const sectionList = singleTabContent?.sectionListRenderer?.contents ?? twoColSec?.sectionListRenderer?.contents ?? [];
+
+            let rawItems = [];
+            if (singleTabContent?.musicPlaylistShelfRenderer?.contents) {
+                rawItems = singleTabContent.musicPlaylistShelfRenderer.contents;
+            } else if (twoColSec?.musicPlaylistShelfRenderer?.contents) {
+                rawItems = twoColSec.musicPlaylistShelfRenderer.contents;
+            } else {
+                for (const sec of sectionList) {
+                    const shelf = sec?.musicPlaylistShelfRenderer ?? sec?.musicShelfRenderer;
+                    if (Array.isArray(shelf?.contents)) {
+                        rawItems.push(...shelf.contents);
+                    }
+                }
+            }
+
+            if (!rawItems.length) {
+                function collectListItems(node) {
+                    if (!node || typeof node !== "object") return;
+                    if (node.musicResponsiveListItemRenderer) {
+                        rawItems.push(node);
+                        return;
+                    }
+                    for (const k of Object.keys(node)) {
+                        if (Array.isArray(node[k])) {
+                            node[k].forEach(collectListItems);
+                        } else if (typeof node[k] === "object") {
+                            collectListItems(node[k]);
+                        }
+                    }
+                }
+                collectListItems(data?.contents);
+            }
+
+            const items = [];
+            for (const entry of rawItems) {
+                const item = parseListItem(entry);
+                if (item?.title && (item.videoId || item.isPlayable === false)) {
+                    items.push(item);
+                }
+            }
+            return items;
+        } catch (err) {
+            return [];
+        }
+    }
 
     async function getTrackLyrics(videoId) {
         try {
